@@ -1,5 +1,7 @@
 //! The game screen's state and what each key does. Drawing is in `draw.rs`.
 
+use super::map::Flash;
+use crate::chronicle::{EventKind, Outcome};
 use crate::court::{Court, Notice};
 use crate::diplomacy::Term;
 use crate::orders::Order;
@@ -7,6 +9,7 @@ use crate::view::View;
 use crate::{season_name, NobleId, ProvinceId};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::{Position, Rect};
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tab {
@@ -112,7 +115,15 @@ pub struct Play {
     pub sidebar: Rect,
     /// Back to the title screen.
     pub leave: bool,
+    /// Last season's fighting, to flash on the map once the report is closed.
+    pub flashes: Vec<Flash>,
+    /// When the flashing began (it waits for the map to be in view).
+    pub flash_start: Option<Instant>,
 }
+
+/// How long last season's battles flash on the map, and how fast.
+pub const FLASH_FOR: Duration = Duration::from_millis(3500);
+const FLASH_BLINK: u128 = 300;
 
 impl Play {
     pub fn new(court: Box<dyn Court>) -> Play {
@@ -130,6 +141,8 @@ impl Play {
             hits: vec![],
             sidebar: Rect::default(),
             leave: false,
+            flashes: vec![],
+            flash_start: None,
         };
         if p.view().winner.is_some() {
             p.popup = Some(Popup::Over { metric: 0 });
@@ -204,7 +217,22 @@ impl Play {
 
     // ---- input -----------------------------------------------------------
 
+    /// Whether this frame shows last season's battles bright; None once they are done.
+    pub fn flash_on(&self) -> bool {
+        self.flash_start.is_some_and(|s| (s.elapsed().as_millis() / FLASH_BLINK).is_multiple_of(2))
+    }
+
     pub fn tick(&mut self) {
+        if !self.flashes.is_empty() && !matches!(self.popup, Some(Popup::Report { .. })) {
+            match self.flash_start {
+                None => self.flash_start = Some(Instant::now()),
+                Some(s) if s.elapsed() >= FLASH_FOR => {
+                    self.flashes.clear();
+                    self.flash_start = None;
+                }
+                Some(_) => {}
+            }
+        }
         for n in self.court.poll() {
             match n {
                 Notice::Resolved { season } => {
@@ -215,6 +243,8 @@ impl Play {
                     if let Some(p) = first {
                         self.sel = p;
                     }
+                    self.flashes = flashes(self.view(), season);
+                    self.flash_start = None;
                     self.status = format!("{} — your orders for the new season.", season_name(self.view().season));
                     self.popup = Some(if self.view().winner.is_some() { Popup::Over { metric: 0 } } else { Popup::Report { season, scroll: 0 } });
                 }
@@ -658,4 +688,17 @@ impl Play {
         }
         false
     }
+}
+
+/// The battles and road clashes of `season` that this noble knows of.
+pub fn flashes(v: &View, season: u32) -> Vec<Flash> {
+    v.events
+        .iter()
+        .filter(|e| e.season == season)
+        .filter_map(|e| match &e.kind {
+            EventKind::Battle { at, outcome, .. } => Some(Flash::Battle { at: *at, taken: matches!(outcome, Outcome::Taken(_)) }),
+            EventKind::Clash { between: (a, b), .. } => Some(Flash::Clash(*a, *b)),
+            _ => None,
+        })
+        .collect()
 }

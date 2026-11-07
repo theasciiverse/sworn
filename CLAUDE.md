@@ -91,7 +91,8 @@ unique units. Using real historical peoples is fine, but the faction set is ours
 - [ ] Rehosting needs the save, which only the host has. Sending it to every player each season
       would let anyone rehost, but a save holds the whole game, so it would break the fog of war
       for anyone who looks inside. Undecided
-- [ ] Sound, and juice (battle flashes on the map)
+- [ ] Sound. A terminal bell is all a TUI has without an audio crate; whether it is wanted
+      (end of season, timer running low) is a taste call. Juice so far: battle flashes
 - [ ] LAN port 31460 is Fealty's. Note `sigpipe` and `sleighride` both use 31459
 
 ## Status (2026-11-07)
@@ -109,7 +110,8 @@ an id across the internet), with saves, rejoining and rehosting.
   `RemoteCourt` in `netcourt.rs`). `net.rs`/`lan.rs` are Panzer's, widened to 7 guests
   (Panzer's writer now waits 300 ms before closing a kicked connection, so its Reject arrives).
   `proto.rs` is Fealty's own.
-- `tui/`: `map.rs` the realm as text, `play.rs` game screen state and keys, `draw.rs` drawing,
+- `tui/`: `map.rs` the realm as text (last season's battles blink `✶`, road clashes `×`, for a
+  few seconds after the report closes), `play.rs` game screen state and keys, `draw.rs` drawing,
   `over.rs` standings and charts after the game, `title.rs`, `lobby.rs`.
 - Tests: `tests/rules.rs` (each mechanic on a hand-built map, AI deals and bribes, 175 computer
   games checked for invariants and replay determinism), `tests/tui.rs` (a season by keyboard,

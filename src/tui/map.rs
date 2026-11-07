@@ -30,6 +30,15 @@ pub fn glyph(k: Kind) -> char {
     }
 }
 
+/// What happened somewhere last season, flashed on the map once the report closes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Flash {
+    /// A battle at a province, and whether it changed hands.
+    Battle { at: ProvinceId, taken: bool },
+    /// Columns met on the road between two provinces.
+    Clash(ProvinceId, ProvinceId),
+}
+
 pub struct MapMarks<'a> {
     pub sel: ProvinceId,
     /// Provinces to point out (where a march can go).
@@ -37,7 +46,14 @@ pub struct MapMarks<'a> {
     pub target: Option<ProvinceId>,
     /// Planned marches, drawn over the roads.
     pub marches: &'a [(ProvinceId, ProvinceId)],
+    /// Last season's fighting, and whether this frame is the bright half of the blink.
+    pub flashes: &'a [Flash],
+    pub flash_on: bool,
 }
+
+const FLASH_TAKEN: Color = Color::Indexed(196);
+const FLASH_HELD: Color = Color::Indexed(231);
+const FLASH_ROAD: Color = Color::Indexed(203);
 
 /// Where each province's label sits in `area`, and how many name characters fit.
 pub fn layout(area: Rect, v: &View) -> (Vec<(u16, u16)>, usize) {
@@ -115,6 +131,21 @@ pub fn draw(buf: &mut Buffer, area: Rect, v: &View, marks: &MapMarks, hits: &mut
         line(pos[a as usize], pos[b as usize], |x, y| put(buf, x, y, '•', style, false));
     }
 
+    if marks.flash_on {
+        for f in marks.flashes {
+            let &Flash::Clash(a, b) = f else { continue };
+            let style = Style::new().fg(FLASH_ROAD).add_modifier(Modifier::BOLD);
+            let mut cells = vec![];
+            line(pos[a as usize], pos[b as usize], |x, y| cells.push((x, y)));
+            for &(x, y) in &cells {
+                put(buf, x, y, '•', style, false);
+            }
+            let (pa, pb) = (pos[a as usize], pos[b as usize]);
+            let mid = cells.get(cells.len() / 2).copied().unwrap_or(((pa.0 + pb.0) / 2 + 1, (pa.1 + pb.1) / 2));
+            put(buf, mid.0, mid.1, '×', style, false);
+        }
+    }
+
     for p in &v.provinces {
         let (x, y) = pos[p.id as usize];
         let color = owner_color(p.owner);
@@ -131,7 +162,17 @@ pub fn draw(buf: &mut Buffer, area: Rect, v: &View, marks: &MapMarks, hits: &mut
         if marks.sel == p.id {
             name_style = Style::new().fg(Color::Black).bg(color).add_modifier(Modifier::BOLD);
         }
-        put(buf, x, y, glyph(p.kind), Style::new().fg(color), true);
+        let battle = marks.flashes.iter().find_map(|f| match *f {
+            Flash::Battle { at, taken } if at == p.id => Some(taken),
+            _ => None,
+        });
+        match battle {
+            Some(taken) if marks.flash_on => {
+                let style = Style::new().fg(if taken { FLASH_TAKEN } else { FLASH_HELD }).add_modifier(Modifier::BOLD);
+                put(buf, x, y, '✶', style, true);
+            }
+            _ => put(buf, x, y, glyph(p.kind), Style::new().fg(color), true),
+        }
         let name: String = p.name.chars().take(lens[p.id as usize]).collect();
         for (i, ch) in name.chars().enumerate() {
             put(buf, x + 1 + i as u16, y, ch, name_style, true);

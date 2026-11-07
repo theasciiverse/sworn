@@ -91,7 +91,8 @@ pub fn draw(f: &mut Frame, play: &mut Play) {
         Some(Popup::March { dests, di, .. }) => (dests.clone(), dests.get(*di).copied()),
         _ => (vec![], None),
     };
-    let marks = MapMarks { sel: play.sel, targets: &targets, target, marches: &marches };
+    let flash_on = play.flash_on();
+    let marks = MapMarks { sel: play.sel, targets: &targets, target, marches: &marches, flashes: &play.flashes, flash_on };
     let mut hits = std::mem::take(&mut play.hits);
     map::draw(f.buffer_mut(), inner, play.court.view(), &marks, &mut hits);
     play.hits = hits;
