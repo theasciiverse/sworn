@@ -62,6 +62,10 @@ unique units. Using real historical peoples is fine, but the faction set is ours
   sides can still pay). Letters promise anything. Marching for an ally (`on_behalf`) is how you
   support them, and not turning up is how you betray them. Marching on your own liege or vassal
   breaks the oath publicly for 10 prestige; renouncing openly costs 4.
+- **Head-on marches** (2026-11-07): columns going opposite ways along one road meet halfway if
+  they serve different sides, and fight troop for troop (no walls, no people's bonus: with the
+  Danes' attack bonus counted, they rose from 29% to 32% of wins). The winners march on with
+  their survivors, the rest fall back with half; allies guarding each other just pass.
 - **Winning:** king of your people = no liege, hold your people's crown seat, power (provinces
   held directly and through vassals) at least 40% of the realm, 20 prestige, and every other
   living noble of your people sworn to you somewhere down the chain. After 30 years the highest
@@ -83,7 +87,6 @@ unique units. Using real historical peoples is fine, but the faction set is ours
 - [ ] Rehosting needs the save, which only the host has. Sending it to every player each season
       would let anyone rehost, but a save holds the whole game, so it would break the fog of war
       for anyone who looks inside. Undecided
-- [ ] Head-on marches (A to B while B to A) pass each other instead of meeting on the road
 - [ ] Turn timer for live sessions (planned, not built): the host can only wait for everyone
 - [ ] Sound, and juice (battle flashes on the map)
 - [ ] LAN port 31460 is Fealty's. Note `sigpipe` and `sleighride` both use 31459

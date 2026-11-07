@@ -592,7 +592,8 @@ fn help_text() -> Text<'static> {
         Line::raw("Battles: the strongest side wins and keeps troops in proportion"),
         Line::raw("to its margin; a tie leaves both bloodied. Walls multiply the"),
         Line::raw("defenders. Marching on your liege or vassal breaks your oath"),
-        Line::raw("before the whole realm. No marching in winter."),
+        Line::raw("before the whole realm. Enemies marching opposite ways along a"),
+        Line::raw("road meet halfway and fight troop for troop. No marching in winter."),
         Line::raw(""),
         Line::styled("Any key to close.", DIM),
     ])

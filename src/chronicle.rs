@@ -51,6 +51,9 @@ pub enum EventKind {
     /// Came to an ally's province to help hold it; no one attacked.
     StoodGuard { noble: NobleId, at: ProvinceId, count: u32 },
     Battle { at: ProvinceId, defender: Option<NobleId>, garrison: u32, marched: Vec<Contribution>, outcome: Outcome },
+    /// Columns marching opposite ways along the road between two provinces
+    /// met halfway. `winner` marched on; no winner means all fell back.
+    Clash { between: (ProvinceId, ProvinceId), marched: Vec<Contribution>, winner: Option<NobleId> },
     /// Troops came home to find home taken.
     Scattered { noble: NobleId, home: ProvinceId, count: u32 },
     Deserted { noble: NobleId, count: u32 },
@@ -151,6 +154,20 @@ impl Event {
                     Outcome::Standoff => "Neither side prevailed.".into(),
                 };
                 format!("Battle at {} ({def} with {garrison}; {}). {end}", at(*p), sides.join("; "))
+            }
+            EventKind::Clash { between: (a, b), marched, winner } => {
+                let sides: Vec<String> = marched
+                    .iter()
+                    .map(|c| {
+                        let side = if c.noble == c.on_behalf { String::new() } else { format!(" for {}", who(c.on_behalf)) };
+                        format!("{} with {} from {}{side}", who(c.noble), c.count, at(c.from))
+                    })
+                    .collect();
+                let end = match winner {
+                    Some(w) => format!("{}'s side marched on.", who(*w)),
+                    None => "Neither side gave way; all fell back.".into(),
+                };
+                format!("Armies met on the road between {} and {} ({}). {end}", at(*a), at(*b), sides.join("; "))
             }
             EventKind::Scattered { noble, home, count } => {
                 format!("{count} of {}'s troops came home to {} and found it lost; they scattered.", who(*noble), at(*home))

@@ -348,3 +348,57 @@ fn gold_buys_a_computer_nobles_peace() {
     assert!(bo_attacks_ann(false), "without a gift, the weak hold is taken");
     assert!(!bo_attacks_ann(true), "after a gift, Bo leaves Ann alone");
 }
+
+fn clash(g: &Game, first: usize) -> Option<Option<u8>> {
+    g.chronicle[first..].iter().find_map(|e| match &e.kind {
+        EventKind::Clash { winner, .. } => Some(*winner),
+        _ => None,
+    })
+}
+
+#[test]
+fn head_on_marches_meet_on_the_road() {
+    let mut g = game();
+    g.submit(0, vec![march(0, 1, 10)]).unwrap();
+    g.submit(1, vec![march(1, 0, 4)]).unwrap();
+    let first = g.resolve();
+    assert_eq!(clash(&g, first), Some(Some(0)), "10 beat 4 in the field");
+    assert_eq!(g.map.provinces[0].owner, Some(0), "Bo's column never reached A");
+    assert_eq!(g.map.provinces[1].owner, Some(0));
+    assert_eq!(g.map.provinces[1].troops, 6, "ceil(10 * 6/10) marched on into an empty B");
+    let scattered = g.chronicle[first..].iter().any(|e| matches!(e.kind, EventKind::Scattered { noble: 1, home: 1, count: 2 }));
+    assert!(scattered, "Bo's beaten 2 fell back to a B already lost");
+}
+
+#[test]
+fn an_even_clash_on_the_road_sends_both_home() {
+    let mut g = game();
+    g.submit(0, vec![march(0, 1, 4)]).unwrap();
+    g.submit(1, vec![march(1, 0, 4)]).unwrap();
+    let first = g.resolve();
+    assert_eq!(clash(&g, first), Some(None));
+    assert_eq!((g.map.provinces[0].owner, g.map.provinces[0].troops), (Some(0), 6 + 2));
+    assert_eq!((g.map.provinces[1].owner, g.map.provinces[1].troops), (Some(1), 2));
+}
+
+#[test]
+fn allies_marching_to_guard_each_other_pass_on_the_road() {
+    let mut g = game();
+    g.submit(0, vec![Order::March { from: 0, to: 1, count: 3, on_behalf: Some(1) }]).unwrap();
+    g.submit(1, vec![Order::March { from: 1, to: 0, count: 2, on_behalf: Some(0) }]).unwrap();
+    let first = g.resolve();
+    assert_eq!(clash(&g, first), None);
+    assert_eq!(g.map.provinces[0].troops, 10);
+    assert_eq!(g.map.provinces[1].troops, 4);
+}
+
+#[test]
+fn your_own_columns_swap_places_freely() {
+    let mut g = game();
+    own(&mut g, 1, 0, 4);
+    g.submit(0, vec![march(0, 1, 10), march(1, 0, 4)]).unwrap();
+    let first = g.resolve();
+    assert_eq!(clash(&g, first), None);
+    assert_eq!(g.map.provinces[0].troops, 4);
+    assert_eq!(g.map.provinces[1].troops, 10);
+}

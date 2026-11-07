@@ -196,11 +196,12 @@ impl Game {
             self.record(Visibility::Public, EventKind::OathBroken { breaker, victim, at });
         }
 
+        let mut returns: Vec<(NobleId, ProvinceId, u32)> = vec![];
+        let marches = self.clashes(marches, &mut returns);
         let mut by_dest: BTreeMap<ProvinceId, Vec<Contribution>> = BTreeMap::new();
         for (c, to) in marches {
             by_dest.entry(to).or_default().push(c);
         }
-        let mut returns: Vec<(NobleId, ProvinceId, u32)> = vec![];
         for (dest, cs) in by_dest {
             self.battle(dest, cs, &mut returns);
         }
@@ -214,6 +215,70 @@ impl Game {
                 self.record(Visibility::Private(vec![n]), EventKind::Scattered { noble: n, home, count });
             }
         }
+    }
+
+    /// Columns marching opposite ways along one road meet halfway and fight
+    /// in the open field, troop for troop (no walls, and no people's attack or
+    /// defence bonus, since neither side is assaulting), if they serve
+    /// different sides (two allies coming to help each other just pass).
+    /// The strongest side marches on with its survivors; everyone else falls
+    /// back home with half, and a standoff sends every column home.
+    fn clashes(
+        &mut self,
+        marches: Vec<(Contribution, ProvinceId)>,
+        returns: &mut Vec<(NobleId, ProvinceId, u32)>,
+    ) -> Vec<(Contribution, ProvinceId)> {
+        let owner = |g: &Game, p: ProvinceId| g.map.provinces[p as usize].owner;
+        let hostile = |g: &Game, a: &(Contribution, ProvinceId), b: &(Contribution, ProvinceId)| {
+            a.0.on_behalf != b.0.on_behalf
+                && !(Some(a.0.on_behalf) == owner(g, a.1) && Some(b.0.on_behalf) == owner(g, b.1))
+        };
+        let mut roads: BTreeMap<(ProvinceId, ProvinceId), Vec<usize>> = BTreeMap::new();
+        for (i, (c, to)) in marches.iter().enumerate() {
+            roads.entry((c.from.min(*to), c.from.max(*to))).or_default().push(i);
+        }
+        // What each march becomes: None if it fell back, else its new count.
+        let mut fate: Vec<Option<u32>> = marches.iter().map(|m| Some(m.0.count)).collect();
+        for ((a, b), idx) in roads {
+            let (ab, ba): (Vec<usize>, Vec<usize>) = idx.iter().partition(|&&i| marches[i].0.from == a);
+            if !ab.iter().any(|&i| ba.iter().any(|&j| hostile(self, &marches[i], &marches[j]))) {
+                continue;
+            }
+            let mut sides: BTreeMap<NobleId, u64> = BTreeMap::new();
+            for &i in &idx {
+                let c = &marches[i].0;
+                *sides.entry(c.on_behalf).or_default() += c.count as u64;
+            }
+            let mut ranked: Vec<(NobleId, u64)> = sides.into_iter().collect();
+            ranked.sort_by(|x, y| y.1.cmp(&x.1));
+            let top = ranked[0].1;
+            let second = ranked.get(1).map_or(0, |s| s.1);
+            let winner = (top > second).then_some(ranked[0].0);
+            for &i in &idx {
+                let c = &marches[i].0;
+                if Some(c.on_behalf) == winner {
+                    let s = ((c.count as u64 * (top - second)).div_ceil(top)) as u32;
+                    fate[i] = (s > 0).then_some(s);
+                } else {
+                    returns.push((c.noble, c.from, c.count / 2));
+                    fate[i] = None;
+                }
+            }
+            let marched: Vec<Contribution> = idx.iter().map(|&i| marches[i].0.clone()).collect();
+            let mut witnesses: BTreeSet<NobleId> = self.watchers(a).into_iter().collect();
+            witnesses.extend(self.watchers(b));
+            witnesses.extend(marched.iter().flat_map(|c| [c.noble, c.on_behalf]));
+            let to = Visibility::Private(witnesses.into_iter().collect());
+            self.record(to, EventKind::Clash { between: (a, b), marched, winner });
+        }
+        marches
+            .into_iter()
+            .zip(fate)
+            .filter_map(|((mut c, to), f)| {
+                c.count = f?;
+                Some((c, to))
+            })
+            .collect()
     }
 
     fn battle(&mut self, dest: ProvinceId, cs: Vec<Contribution>, returns: &mut Vec<(NobleId, ProvinceId, u32)>) {
