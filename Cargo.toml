@@ -1,0 +1,25 @@
+[package]
+name = "fealty"
+version = "0.1.0"
+edition = "2021"
+description = "Asciiverse multiplayer medieval politics for the terminal, Rust + Ratatui (working title)"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "fealty"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+postcard = { version = "1", features = ["alloc"] }
+log = "0.4"
+env_logger = "0.11"
+ratatui = "0.30"
+iroh = "1.0.2"
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "time", "sync", "io-util"] }
+socket2 = { version = "0.6", features = ["all"] }
+
+[profile.release]
+debug = 1
