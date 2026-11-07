@@ -21,6 +21,11 @@ marches (`b` to fight on someone else's behalf), `w` writes a letter with an opt
 Up to eight nobles; empty seats go to computer nobles. Games save every season to
 `~/.local/share/fealty/`. If a player drops, the computer holds their seat until they rejoin
 under the same name. If the host drops, they resume from the title menu and everyone rejoins.
+The host can set a season timer in the lobby (`t`); when it runs out, anyone who has not sent
+orders holds where they stand.
+
+Enemy columns marching opposite ways along the same road meet halfway and fight in the field,
+troop for troop, before either reaches its target.
 
 ## The crown
 
