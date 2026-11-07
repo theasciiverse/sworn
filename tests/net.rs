@@ -272,8 +272,20 @@ fn hosting_and_joining_through_the_screens() {
         t.draw(|f| host.draw(f)).unwrap();
         text(&t).contains("Guest")
     });
+    press(&mut host, KeyCode::Char('t'));
+    press(&mut host, KeyCode::Char('t'));
+    t.draw(|f| host.draw(f)).unwrap();
+    assert!(text(&t).contains("2 min a season"), "{}", text(&t));
+    until("the guest to see the timer", 10, || {
+        host.tick();
+        guest.tick();
+        t.draw(|f| guest.draw(f)).unwrap();
+        text(&t).contains("2 min a season")
+    });
     press(&mut host, KeyCode::Enter);
     assert!(matches!(host.screen, Screen::Play(_)));
+    t.draw(|f| host.draw(f)).unwrap();
+    assert!(text(&t).contains(" left"), "the countdown shows: {}", text(&t));
     until("the guest's game screen", 20, || {
         host.tick();
         guest.tick();
@@ -300,4 +312,48 @@ fn hosting_and_joining_through_the_screens() {
     });
     assert!(dir.join("fealty/hosted.fealty").exists());
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_season_timer_runs_out_on_a_slow_player() {
+    let listener = lan::Listener::start(lan::PORT).expect("LAN listener");
+    let path = scratch("timer");
+    let mut lobby = HostLobby::new("Hostt", Faction::Saxons, 2, path.clone());
+    until("the host endpoint", 20, || {
+        lobby.poll();
+        lobby.id.is_some()
+    });
+    let mut ann = join(find_host(&listener, "Hostt").addr(), "Ann", &mut lobby);
+    lobby.set_timer(Some(Duration::from_secs(2)));
+    until("the timer to reach Ann", 10, || {
+        lobby.poll();
+        ann.poll();
+        ann.timer == 2
+    });
+
+    let mut host = lobby.start(7).unwrap();
+    let mut ann = seat(ann, &mut host);
+    let a = ann.view().me;
+    assert!(ann.deadline().is_some(), "Ann sees the clock");
+    assert!(host.deadline().is_some());
+    host.submit(vec![]).unwrap();
+    std::thread::sleep(Duration::from_millis(500));
+    host.poll();
+    assert_eq!(host.game().season, 0, "time is not up yet");
+
+    // Ann never sends orders; the clock turns the season without her.
+    let (mut resolved, mut told) = (false, false);
+    until("the timer to turn the season", 10, || {
+        host.poll();
+        for n in ann.poll() {
+            resolved |= matches!(n, Notice::Resolved { season: 0 });
+            told |= matches!(&n, Notice::Info(s) if s.contains("Time ran out") && s.contains("Ann"));
+        }
+        resolved && told
+    });
+    assert_eq!(host.game().season, 1);
+    assert!(!host.game().nobles[a as usize].ai, "Ann keeps her seat");
+    let left = host.deadline().unwrap().saturating_duration_since(Instant::now());
+    assert!(left > Duration::from_millis(1000), "a fresh clock for the new season");
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }

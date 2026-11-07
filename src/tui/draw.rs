@@ -343,6 +343,11 @@ fn draw_status(f: &mut Frame, area: Rect, play: &Play) {
     if v.submitted && !others.is_empty() {
         top.push_span(Span::styled(format!(" · waiting for {}", others.join(", ")), DIM));
     }
+    if let Some(d) = play.court.deadline() {
+        let left = d.saturating_duration_since(std::time::Instant::now()).as_secs();
+        let style = if left <= 30 && !v.submitted { Style::new().fg(Color::Indexed(203)).bold() } else { DIM };
+        top.push_span(Span::styled(format!(" · {}:{:02} left", left / 60, left % 60), style));
+    }
     let bottom = Line::from(vec![Span::styled(play.status.clone(), DIM)]);
     f.render_widget(Paragraph::new(vec![top, bottom]), area);
 }

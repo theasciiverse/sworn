@@ -2,7 +2,7 @@
 
 use crate::faction::Faction;
 use crate::lan;
-use crate::netcourt::{HostLobby, JoinLobby};
+use crate::netcourt::{timer_name, HostLobby, JoinLobby};
 use crate::proto::Seat;
 use iroh::{EndpointAddr, EndpointId};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
@@ -88,6 +88,11 @@ impl Lobby {
                     }
                 }
             }
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                if let Lobby::Host(h) = self {
+                    h.cycle_timer(k.code == KeyCode::Char('t'));
+                }
+            }
             KeyCode::Enter => {
                 if let Lobby::Host(h) = self {
                     if h.id.is_some() {
@@ -116,7 +121,12 @@ impl Lobby {
                 lines.push(Line::styled(if h.resumed() { "Seats (players rejoin under their old names):" } else { "At the table:" }, DIM));
                 lines.extend(seat_lines(&h.seats(), h.size as u8, h.resumed()));
                 lines.push(Line::raw(""));
-                let mut help = vec![key("Enter"), Span::raw(" begin  ")];
+                lines.push(Line::from(vec![Span::styled("Orders: ", DIM), Span::styled(timer_name(h.timer), Style::new().fg(GOLD))]));
+                if h.timer.is_some() {
+                    lines.push(Line::styled("When time runs out, anyone who has not sent orders holds.", DIM));
+                }
+                lines.push(Line::raw(""));
+                let mut help = vec![key("Enter"), Span::raw(" begin  "), key("t"), Span::raw(" timer  ")];
                 if !h.resumed() {
                     help.extend([key("←→"), Span::raw(" your people  ")]);
                 }
@@ -136,6 +146,9 @@ impl Lobby {
                     lines.push(Line::raw("Seated. Waiting for the host to begin."));
                     lines.push(Line::raw(""));
                     lines.extend(seat_lines(&j.seats, j.size, j.resumed));
+                    lines.push(Line::raw(""));
+                    let t = (j.timer > 0).then(|| std::time::Duration::from_secs(j.timer as u64));
+                    lines.push(Line::from(vec![Span::styled("Orders: ", DIM), Span::raw(timer_name(t))]));
                     if !j.resumed {
                         lines.push(Line::raw(""));
                         lines.push(Line::from(vec![Span::raw("Your people: "), Span::styled(format!("◀ {} ▶", j.faction.name()), Style::new().fg(GOLD)), Span::styled(format!("  {}", j.faction.blurb()), DIM)]));

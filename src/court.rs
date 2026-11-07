@@ -36,6 +36,10 @@ pub trait Court {
     fn save(&mut self) -> Result<String, String> {
         Err("only the host holds the game".into())
     }
+    /// When this season's orders are due, if the table has a timer.
+    fn deadline(&self) -> Option<std::time::Instant> {
+        None
+    }
     /// Who else is at the table, for the status line.
     fn describe(&self) -> String;
 }

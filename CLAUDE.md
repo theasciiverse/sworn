@@ -66,6 +66,10 @@ unique units. Using real historical peoples is fine, but the faction set is ours
   they serve different sides, and fight troop for troop (no walls, no people's bonus: with the
   Danes' attack bonus counted, they rose from 29% to 32% of wins). The winners march on with
   their survivors, the rest fall back with half; allies guarding each other just pass.
+- **Season timer** (2026-11-07): the host picks one in the lobby (`t`: none, 1, 2, 3, 5 or 10
+  minutes). The clock starts when a season opens; when it runs out, anyone who has not sent
+  orders gives none (their troops hold) and keeps their seat. The clock lives in `HostCourt`,
+  not the rules core, and reaches players as `Msg::Deadline` (protocol version 2).
 - **Winning:** king of your people = no liege, hold your people's crown seat, power (provinces
   held directly and through vassals) at least 40% of the realm, 20 prestige, and every other
   living noble of your people sworn to you somewhere down the chain. After 30 years the highest
@@ -87,7 +91,6 @@ unique units. Using real historical peoples is fine, but the faction set is ours
 - [ ] Rehosting needs the save, which only the host has. Sending it to every player each season
       would let anyone rehost, but a save holds the whole game, so it would break the fog of war
       for anyone who looks inside. Undecided
-- [ ] Turn timer for live sessions (planned, not built): the host can only wait for everyone
 - [ ] Sound, and juice (battle flashes on the map)
 - [ ] LAN port 31460 is Fealty's. Note `sigpipe` and `sleighride` both use 31459
 

@@ -15,7 +15,7 @@ use crate::NobleId;
 use serde::{Deserialize, Serialize};
 
 /// Bumped on any incompatible change; the host rejects mismatched players.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Seat {
@@ -32,7 +32,8 @@ pub enum Msg {
     Hello { name: String, version: u32 },
     Reject { reason: String },
     /// Host: who sits at the table before the game starts, and how many seats.
-    Lobby { seats: Vec<Seat>, size: u8, resumed: bool },
+    /// `timer` is the seconds each season allows for orders, 0 for no limit.
+    Lobby { seats: Vec<Seat>, size: u8, resumed: bool, timer: u32 },
     /// Player: the people they want to lead.
     Pick(Faction),
     /// Host: the game has begun (or resumed) and this is your seat.
@@ -45,6 +46,8 @@ pub enum Msg {
     Unsubmit,
     /// Host: something the player asked for was refused, or news for the status line.
     Info(String),
+    /// Host: seconds left for this season's orders; None means no limit.
+    Deadline(Option<u32>),
     /// Keeps a quiet connection from timing out.
     Ping,
 }

@@ -22,6 +22,22 @@ use std::time::{Duration, Instant};
 
 const PING_EVERY: Duration = Duration::from_secs(2);
 
+/// Season timers the host can choose in the lobby, in seconds (0: none).
+pub const TIMERS: [u32; 6] = [0, 60, 120, 180, 300, 600];
+
+/// "2 min" or "90 s"; "no time limit" for none.
+pub fn timer_name(t: Option<Duration>) -> String {
+    match t.map(|t| t.as_secs()) {
+        None | Some(0) => "no time limit".into(),
+        Some(s) if s % 60 == 0 => format!("{} min a season", s / 60),
+        Some(s) => format!("{s} s a season"),
+    }
+}
+
+fn instant_in(secs: Option<u32>) -> Option<Instant> {
+    secs.map(|s| Instant::now() + Duration::from_secs(s as u64))
+}
+
 /// Names for computer nobles filling empty seats.
 pub const COMPUTER_NAMES: &[&str] = &["Aldric", "Brynja", "Cedric", "Dagny", "Eadric", "Frida", "Godwin", "Hild", "Ivo", "Jorunn"];
 
@@ -52,6 +68,8 @@ pub struct HostLobby {
     pub status: String,
     pub failed: Option<String>,
     last_ping: Instant,
+    /// How long each season waits for orders before the stragglers hold.
+    pub timer: Option<Duration>,
 }
 
 impl HostLobby {
@@ -67,6 +85,7 @@ impl HostLobby {
             status: "Opening the gates…".into(),
             failed: None,
             last_ping: Instant::now(),
+            timer: None,
         }
     }
 
@@ -85,7 +104,22 @@ impl HostLobby {
             status: "Opening the gates…".into(),
             failed: None,
             last_ping: Instant::now(),
+            timer: None,
         }
+    }
+
+    /// Sets how long each season waits for orders (None: until everyone is ready).
+    pub fn set_timer(&mut self, t: Option<Duration>) {
+        self.timer = t.filter(|t| !t.is_zero());
+        self.broadcast_lobby();
+    }
+
+    /// Steps through `TIMERS`.
+    pub fn cycle_timer(&mut self, forward: bool) {
+        let cur = self.timer.map_or(0, |t| t.as_secs() as u32);
+        let i = TIMERS.iter().position(|&t| t == cur).unwrap_or(0) as i32 + if forward { 1 } else { -1 };
+        let t = TIMERS[i.rem_euclid(TIMERS.len() as i32) as usize];
+        self.set_timer(Some(Duration::from_secs(t as u64)));
     }
 
     pub fn resumed(&self) -> bool {
@@ -119,7 +153,8 @@ impl HostLobby {
     }
 
     fn broadcast_lobby(&self) {
-        let msg = Msg::Lobby { seats: self.seats(), size: self.size as u8, resumed: self.resumed.is_some() };
+        let timer = self.timer.map_or(0, |t| t.as_secs() as u32);
+        let msg = Msg::Lobby { seats: self.seats(), size: self.size as u8, resumed: self.resumed.is_some(), timer };
         self.net.send(Cmd::Broadcast(msg));
         self.net.send(Cmd::Beacon { players: self.seats.len() as u8, in_game: false });
     }
@@ -243,9 +278,13 @@ impl HostLobby {
             path: self.path,
             notices: vec![],
             last_ping: Instant::now(),
+            timer: self.timer,
+            deadline: None,
         };
+        court.open_season();
         for (&c, &n) in &court.clients {
             court.net.send(Cmd::SendTo(c, Msg::Seated { me: n }));
+            court.net.send(Cmd::SendTo(c, Msg::Deadline(court.secs_left())));
         }
         court.net.send(Cmd::Beacon { players: court.clients.len() as u8 + 1, in_game: true });
         court.publish();
@@ -264,11 +303,39 @@ pub struct HostCourt {
     path: PathBuf,
     notices: Vec<Notice>,
     last_ping: Instant,
+    timer: Option<Duration>,
+    deadline: Option<Instant>,
 }
 
 impl HostCourt {
     pub fn game(&self) -> &Game {
         &self.game
+    }
+
+    /// Starts the clock on a new season's orders, if the table has a timer.
+    fn open_season(&mut self) {
+        self.deadline = self.timer.filter(|_| self.game.winner.is_none()).map(|t| Instant::now() + t);
+    }
+
+    fn secs_left(&self) -> Option<u32> {
+        self.deadline.map(|d| d.saturating_duration_since(Instant::now()).as_secs().max(1) as u32)
+    }
+
+    /// Time is up: every person still deciding gives no orders, so their
+    /// troops hold where they stand, and the season turns.
+    fn time_up(&mut self) {
+        self.deadline = None;
+        let late: Vec<NobleId> = self.game.alive().filter(|n| !n.ai && self.game.orders[n.id as usize].is_none()).map(|n| n.id).collect();
+        if late.is_empty() {
+            return;
+        }
+        for &n in &late {
+            let _ = self.game.submit(n, vec![]);
+        }
+        let names: Vec<String> = late.iter().map(|&n| self.name(n)).collect();
+        log::info!("time ran out for {}", names.join(", "));
+        self.tell_all(format!("Time ran out. No orders from {}; their troops hold.", names.join(", ")));
+        self.maybe_resolve();
     }
 
     /// Sends every player their view, and refreshes the host's own.
@@ -307,6 +374,9 @@ impl HostCourt {
             self.game.ai_write();
         }
         self.autosave();
+        self.open_season();
+        let secs = self.secs_left();
+        self.net.send(Cmd::Broadcast(Msg::Deadline(secs)));
         self.publish();
         self.notices.push(Notice::Resolved { season });
         log::info!("resolved {}", season_name(season));
@@ -353,6 +423,7 @@ impl HostCourt {
         // Any orders the steward had not yet given are theirs to give again.
         self.clients.insert(c, n);
         self.net.send(Cmd::SendTo(c, Msg::Seated { me: n }));
+        self.net.send(Cmd::SendTo(c, Msg::Deadline(self.secs_left())));
         self.publish();
         self.tell_all(format!("{} has returned to the table.", self.name(n)));
     }
@@ -400,11 +471,18 @@ impl Court for HostCourt {
                 Evt::Connected | Evt::HostMsg(_) | Evt::Disconnected => {}
             }
         }
+        if self.deadline.is_some_and(|d| Instant::now() >= d) {
+            self.time_up();
+        }
         if self.last_ping.elapsed() >= PING_EVERY {
             self.last_ping = Instant::now();
             self.net.send(Cmd::Broadcast(Msg::Ping));
         }
         std::mem::take(&mut self.notices)
+    }
+
+    fn deadline(&self) -> Option<Instant> {
+        self.deadline
     }
 
     fn save(&mut self) -> Result<String, String> {
@@ -425,8 +503,11 @@ pub struct JoinLobby {
     pub seats: Vec<Seat>,
     pub size: u8,
     pub resumed: bool,
+    /// The host's season timer, in seconds (0: none).
+    pub timer: u32,
     pub faction: Faction,
     seated: Option<NobleId>,
+    deadline: Option<Instant>,
     view: Option<View>,
     pub failed: Option<String>,
     last_ping: Instant,
@@ -440,8 +521,10 @@ impl JoinLobby {
             seats: vec![],
             size: 0,
             resumed: false,
+            timer: 0,
             faction: Faction::Saxons,
             seated: None,
+            deadline: None,
             view: None,
             failed: None,
             last_ping: Instant::now(),
@@ -465,11 +548,13 @@ impl JoinLobby {
                     }
                 }
                 Evt::HostMsg(Msg::Reject { reason }) => self.failed = Some(reason),
-                Evt::HostMsg(Msg::Lobby { seats, size, resumed }) => {
+                Evt::HostMsg(Msg::Lobby { seats, size, resumed, timer }) => {
                     self.seats = seats;
                     self.size = size;
                     self.resumed = resumed;
+                    self.timer = timer;
                 }
+                Evt::HostMsg(Msg::Deadline(secs)) => self.deadline = instant_in(secs),
                 Evt::HostMsg(Msg::Seated { me }) => self.seated = Some(me),
                 Evt::HostMsg(Msg::View(v)) => self.view = Some(*v),
                 Evt::HostMsg(_) => {}
@@ -485,7 +570,7 @@ impl JoinLobby {
 
     pub fn into_court(self) -> Option<RemoteCourt> {
         let view = self.view?;
-        Some(RemoteCourt { net: self.net, view, notices: vec![], last_ping: Instant::now(), lost: false })
+        Some(RemoteCourt { net: self.net, view, notices: vec![], last_ping: Instant::now(), lost: false, deadline: self.deadline })
     }
 }
 
@@ -496,6 +581,7 @@ pub struct RemoteCourt {
     notices: Vec<Notice>,
     last_ping: Instant,
     lost: bool,
+    deadline: Option<Instant>,
 }
 
 impl Court for RemoteCourt {
@@ -537,6 +623,7 @@ impl Court for RemoteCourt {
                     }
                 }
                 Evt::HostMsg(Msg::Info(s)) => self.notices.push(Notice::Info(s)),
+                Evt::HostMsg(Msg::Deadline(secs)) => self.deadline = instant_in(secs),
                 Evt::HostMsg(Msg::Reject { reason }) => {
                     self.lost = true;
                     self.notices.push(Notice::Lost(reason));
@@ -555,6 +642,10 @@ impl Court for RemoteCourt {
             self.net.send(Cmd::Broadcast(Msg::Ping));
         }
         std::mem::take(&mut self.notices)
+    }
+
+    fn deadline(&self) -> Option<Instant> {
+        self.deadline.filter(|_| !self.lost)
     }
 
     fn describe(&self) -> String {
