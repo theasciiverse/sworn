@@ -45,8 +45,7 @@ Called Fealty until 2026-11-08. That name was taken several times over: a 2024 S
 game for 2-6 players about vassals and betrayal (app 1770120), Asmadi's board game (2011), an
 itch.io RTS, and Might & Fealty. Sworn was free as far as a web search showed. The rename
 changed the wire names (ALPN `sworn/1`, LAN magic `SWORN-LAN-1`), so Fealty builds cannot
-play Sworn ones. Saves moved to `~/.local/share/sworn/` (`*.sworn`); old `fealty/` saves are
-moved over on first start, and old save files still load. License MIT, as Panzer (whose
+play Sworn ones. Saves live in `~/.local/share/sworn/` (`*.sworn`). License MIT, as Panzer (whose
 `net.rs`/`lan.rs` it shares).
 
 ## Decisions (2026-11-06/07)

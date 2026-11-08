@@ -136,22 +136,6 @@ fn data_home() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// The game was called Fealty before: carry its saves over, once.
-pub fn migrate_old_saves() {
-    let (old, new) = (data_home().join("fealty"), data_dir());
-    if new.exists() || !old.is_dir() {
-        return;
-    }
-    if let Err(e) = std::fs::rename(&old, &new) {
-        log::warn!("could not move {} to {}: {e}", old.display(), new.display());
-        return;
-    }
-    for name in ["autosave", "hosted"] {
-        let _ = std::fs::rename(new.join(format!("{name}.fealty")), new.join(format!("{name}.sworn")));
-    }
-    log::info!("moved old Fealty saves to {}", new.display());
-}
-
 pub fn autosave_path() -> PathBuf {
     data_dir().join("autosave.sworn")
 }

@@ -4,8 +4,6 @@ use crate::game::Game;
 use std::path::Path;
 
 const MAGIC: &[u8; 8] = b"SWORN\0\0\0";
-/// Saves from before the game was renamed from Fealty.
-const OLD_MAGIC: &[u8; 8] = b"FEALTY\0\0";
 /// Bumped on any incompatible change to `Game`.
 pub const FORMAT: u16 = 1;
 
@@ -17,7 +15,7 @@ pub fn to_bytes(g: &Game) -> Vec<u8> {
 }
 
 pub fn from_bytes(b: &[u8]) -> Result<Game, String> {
-    if b.len() < 10 || (&b[..8] != MAGIC && &b[..8] != OLD_MAGIC) {
+    if b.len() < 10 || &b[..8] != MAGIC {
         return Err("not a Sworn save".into());
     }
     let format = u16::from_le_bytes([b[8], b[9]]);

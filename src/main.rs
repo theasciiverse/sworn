@@ -14,7 +14,6 @@ const NAMES: &[&str] = &["Aldric", "Brynja", "Cedric", "Dagny", "Eadric", "Frida
 fn main() -> io::Result<()> {
     // Session logging: RUST_LOG=debug sworn 2>sworn.log
     env_logger::init();
-    sworn::court::migrate_old_saves();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
