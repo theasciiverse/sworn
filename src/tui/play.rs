@@ -129,7 +129,7 @@ impl Play {
     pub fn new(court: Box<dyn Court>) -> Play {
         let v = court.view();
         let sel = v.mine().next().map_or(0, |p| p.id);
-        let status = format!("{} — {}. Press ? for help.", season_name(v.season), court.describe());
+        let status = format!("{}: {}. Press ? for help.", season_name(v.season), court.describe());
         let mut p = Play {
             court,
             sel,
@@ -245,7 +245,7 @@ impl Play {
                     }
                     self.flashes = flashes(self.view(), season);
                     self.flash_start = None;
-                    self.status = format!("{} — your orders for the new season.", season_name(self.view().season));
+                    self.status = format!("{}: your orders for the new season.", season_name(self.view().season));
                     self.popup = Some(if self.view().winner.is_some() { Popup::Over { metric: 0 } } else { Popup::Report { season, scroll: 0 } });
                 }
                 Notice::Info(s) => self.status = s,

@@ -31,7 +31,7 @@ fn key(k: &str) -> Span<'static> {
 fn seat_lines(seats: &[Seat], size: u8, resumed: bool) -> Vec<Line<'static>> {
     let mut lines = vec![];
     for s in seats {
-        let who = if s.host { " (host)" } else if s.empty { " — waiting to be reclaimed" } else { "" };
+        let who = if s.host { " (host)" } else if s.empty { " (waiting to be reclaimed)" } else { "" };
         let style = if s.empty { DIM } else { Style::new().bold() };
         lines.push(Line::from(vec![
             Span::styled(format!("  {:<12}", s.name), style),
@@ -41,7 +41,7 @@ fn seat_lines(seats: &[Seat], size: u8, resumed: bool) -> Vec<Line<'static>> {
     }
     if !resumed {
         for _ in seats.len()..size as usize {
-            lines.push(Line::styled("  (open seat — a computer noble if no one comes)", DIM));
+            lines.push(Line::styled("  (open seat: a computer noble if no one comes)", DIM));
         }
     }
     lines

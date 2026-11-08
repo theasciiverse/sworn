@@ -270,7 +270,7 @@ fn nobles_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
             head.push(Span::styled(" (you)", KEY));
         }
         if !n.alive {
-            head.push(Span::styled(" — fallen", DIM));
+            head.push(Span::styled(" (fallen)", DIM));
         }
         let mut detail = format!("   power {}/{total} · prestige {} · {} held", n.power, n.prestige, n.provinces);
         if let Some(l) = n.liege {
