@@ -1,14 +1,15 @@
 [package]
-name = "fealty"
+name = "sworn"
 version = "0.1.0"
 edition = "2021"
-description = "Asciiverse multiplayer medieval politics for the terminal, Rust + Ratatui (working title)"
+license = "MIT"
+description = "Asciiverse multiplayer medieval politics for the terminal, Rust + Ratatui"
 
 [lib]
 path = "src/lib.rs"
 
 [[bin]]
-name = "fealty"
+name = "sworn"
 path = "src/main.rs"
 
 [dependencies]

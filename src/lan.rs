@@ -1,4 +1,4 @@
-//! LAN discovery: hosts shout "a Fealty game is here" over UDP broadcast,
+//! LAN discovery: hosts shout "a Sworn game is here" over UDP broadcast,
 //! joiners listen and list them. No typing addresses, no internet needed.
 //!
 //! Taken from Panzer (`theasciiverse/panzer/src/lan.rs`, itself from Tetrix), which proved it: iroh only
@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 
 /// After Tetrix, Panzer and Sleighride (31457-31459): one firewall rule covers all.
 pub const PORT: u16 = 31460;
-const MAGIC: &str = "FEALTY-LAN-1";
+const MAGIC: &str = "SWORN-LAN-1";
 const INTERVAL: Duration = Duration::from_millis(800);
 const STALE_AFTER: Duration = Duration::from_secs(4);
 
@@ -74,7 +74,7 @@ impl Broadcaster {
         let beacon = Arc::new(Mutex::new(beacon));
         let stop = Arc::new(AtomicBool::new(false));
         let (b2, s2) = (beacon.clone(), stop.clone());
-        let handle = thread::Builder::new().name("fealty-beacon".into()).spawn(move || {
+        let handle = thread::Builder::new().name("sworn-beacon".into()).spawn(move || {
             while !s2.load(Ordering::Relaxed) {
                 let payload = encode(&b2.lock().unwrap());
                 for t in &targets {
@@ -128,7 +128,7 @@ pub struct Listener {
 
 impl Listener {
     pub fn start(port: u16) -> io::Result<Self> {
-        // Address/port reuse so several Fealty instances on one machine
+        // Address/port reuse so several Sworn instances on one machine
         // (and anything else listening) can all hear the broadcasts.
         let s = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))?;
         s.set_reuse_address(true)?;
@@ -141,7 +141,7 @@ impl Listener {
         let known = Arc::new(Mutex::new(HashMap::new()));
         let stop = Arc::new(AtomicBool::new(false));
         let (k2, s2) = (known.clone(), stop.clone());
-        let handle = thread::Builder::new().name("fealty-lan-listen".into()).spawn(move || {
+        let handle = thread::Builder::new().name("sworn-lan-listen".into()).spawn(move || {
             let mut buf = [0u8; 1024];
             while !s2.load(Ordering::Relaxed) {
                 if let Ok((n, from)) = socket.recv_from(&mut buf) {

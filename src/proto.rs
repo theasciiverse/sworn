@@ -1,4 +1,4 @@
-//! Wire messages between a Fealty host and the players who join it.
+//! Wire messages between a Sworn host and the players who join it.
 //!
 //! The host holds the only `Game`. Players send what they would do (letters,
 //! orders); the host answers with their `View` whenever it changes, and never

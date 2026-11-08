@@ -115,7 +115,7 @@ impl Lobby {
                 lines.push(Line::raw(""));
                 if let Some(id) = h.id {
                     lines.push(Line::styled("Over the internet, players join with:", DIM));
-                    lines.push(Line::styled(format!("  fealty --join {id}"), Style::new().fg(GOLD)));
+                    lines.push(Line::styled(format!("  sworn --join {id}"), Style::new().fg(GOLD)));
                     lines.push(Line::raw(""));
                 }
                 lines.push(Line::styled(if h.resumed() { "Seats (players rejoin under their old names):" } else { "At the table:" }, DIM));

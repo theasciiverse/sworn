@@ -1,4 +1,4 @@
-# Fealty (working title)
+# Sworn
 
 Asciiverse multiplayer strategy game. Rust + Ratatui, networking over iroh. Original IP.
 
@@ -11,7 +11,7 @@ repos had disappeared by 2026. What existed was a 5-commit Python command-line c
 server that was never published, apparently written in Elixir. Researched 2026-10-12; the
 Wayback Machine holds the site (July to November 2018) and the repo front pages.
 
-Nothing is ported or reused from Warwick; there is nothing left to port. Fealty takes only the
+Nothing is ported or reused from Warwick; there is nothing left to port. Sworn takes only the
 premise and does it as a proper full-screen TUI. Warwick's own client was one-shot shell commands
 (`warwick list players`, `warwick message Bjorn re:friends`).
 
@@ -39,6 +39,16 @@ unique units. Using real historical peoples is fine, but the faction set is ours
   charts").
 - Session logging per the Asciiverse convention (`log` + `env_logger` or `tracing`).
 
+## Name and license (2026-11-08)
+
+Called Fealty until 2026-11-08. That name was taken several times over: a 2024 Steam strategy
+game for 2-6 players about vassals and betrayal (app 1770120), Asmadi's board game (2011), an
+itch.io RTS, and Might & Fealty. Sworn was free as far as a web search showed. The rename
+changed the wire names (ALPN `sworn/1`, LAN magic `SWORN-LAN-1`), so Fealty builds cannot
+play Sworn ones. Saves moved to `~/.local/share/sworn/` (`*.sworn`); old `fealty/` saves are
+moved over on first start, and old save files still load. License MIT, as Panzer (whose
+`net.rs`/`lan.rs` it shares).
+
 ## Decisions (2026-11-06/07)
 
 - **Turns:** simultaneous seasons, as in Diplomacy. Everyone's orders are secret and resolve
@@ -46,7 +56,7 @@ unique units. Using real historical peoples is fine, but the faction set is ours
   marching in winter (`Rules::winter_marches`), so winter is for letters.
 - **Hosting:** the host holds the only `Game` and sends each player their fogged `View` and
   nothing more (`netcourt.rs`). The rules core is pure and deterministic (own SplitMix64 RNG,
-  no clock) and the host saves every season (`~/.local/share/fealty/hosted.fealty`). A player
+  no clock) and the host saves every season (`~/.local/share/sworn/hosted.sworn`). A player
   who drops is played by the computer (a "steward") until they rejoin under the same name; a
   host who drops picks "Resume the game you host" and players rejoin by name.
 - **Players:** 2 to 8 nobles; computer nobles (`ai.rs`) fill empty seats and plan from the same
@@ -82,9 +92,6 @@ unique units. Using real historical peoples is fine, but the faction set is ours
 
 ## Open questions / next steps
 
-- [ ] Title: Fealty is a working name. Might & Fealty (`lemcomm/ReMaF`, a browser medieval
-      politics game still in development) is close in name and genre
-- [ ] License: not set yet (Panzer is MIT, Tetrix GPL-2.0-or-later)
 - [ ] Play it with people. Balance so far is computer against computer only; since the
       computer nobles learned politics, 71% of their games end in a coronation (was 94%), in
       14 years on average. Whether that pace suits people is untested
@@ -93,23 +100,23 @@ unique units. Using real historical peoples is fine, but the faction set is ours
       for anyone who looks inside. Undecided
 - [ ] Sound. A terminal bell is all a TUI has without an audio crate; whether it is wanted
       (end of season, timer running low) is a taste call. Juice so far: battle flashes
-- [ ] LAN port 31460 is Fealty's. Note `sigpipe` and `sleighride` both use 31459
+- [ ] LAN port 31460 is Sworn's. Note `sigpipe` and `sleighride` both use 31459
 
 ## Status (2026-11-07)
 
 Playable: single player against computer nobles, and multiplayer over iroh (LAN discovery or
 an id across the internet), with saves, rejoining and rehosting.
 
-- `fealty` title menu; `fealty --host`, `fealty --join [ID]`, `fealty --load FILE`;
-  `fealty --simulate [--seed N] [--nobles N] [--all]` prints a whole computer game.
-  Session logging: `RUST_LOG=debug fealty 2>fealty.log`.
+- `sworn` title menu; `sworn --host`, `sworn --join [ID]`, `sworn --load FILE`;
+  `sworn --simulate [--seed N] [--nobles N] [--all]` prints a whole computer game.
+  Session logging: `RUST_LOG=debug sworn 2>sworn.log`.
 - Rules: `map.rs` generation, `game.rs` state, `diplomacy.rs` letters and offers, `resolve.rs`
   the season, `view.rs` fog of war, `ai.rs` computer nobles, `save.rs` save files,
   `chronicle.rs` events with who may see them.
 - `court.rs`: the interface talks only to a `Court` (`LocalCourt` here; `HostCourt`,
   `RemoteCourt` in `netcourt.rs`). `net.rs`/`lan.rs` are Panzer's, widened to 7 guests
   (Panzer's writer now waits 300 ms before closing a kicked connection, so its Reject arrives).
-  `proto.rs` is Fealty's own.
+  `proto.rs` is Sworn's own.
 - `tui/`: `map.rs` the realm as text (last season's battles blink `✶`, road clashes `×`, for a
   few seconds after the report closes), `play.rs` game screen state and keys, `draw.rs` drawing,
   `over.rs` standings and charts after the game, `title.rs`, `lobby.rs`.

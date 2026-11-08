@@ -1,16 +1,16 @@
 //! A real game over iroh on this machine: a host and two players who find it
 //! by LAN beacon. Slow-ish (a few seconds) and needs UDP on localhost.
 
-use fealty::court::{Court, Notice};
-use fealty::lan;
-use fealty::netcourt::{HostCourt, HostLobby, JoinLobby, RemoteCourt};
-use fealty::{Faction, Order};
+use sworn::court::{Court, Notice};
+use sworn::lan;
+use sworn::netcourt::{HostCourt, HostLobby, JoinLobby, RemoteCourt};
+use sworn::{Faction, Order};
 use std::time::{Duration, Instant};
 
 fn scratch(name: &str) -> std::path::PathBuf {
-    let d = std::env::temp_dir().join(format!("fealty-test-{}-{name}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("sworn-test-{}-{name}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
-    d.join("hosted.fealty")
+    d.join("hosted.sworn")
 }
 
 fn until(what: &str, secs: u64, mut f: impl FnMut() -> bool) {
@@ -24,16 +24,16 @@ fn until(what: &str, secs: u64, mut f: impl FnMut() -> bool) {
     panic!("timed out waiting for {what}");
 }
 
-fn find_host(listener: &lan::Listener, name: &str) -> fealty::lan::Found {
+fn find_host(listener: &lan::Listener, name: &str) -> sworn::lan::Found {
     find(listener, |f| f.beacon.name == name)
 }
 
 /// By id: a host restarted under the same name is a different endpoint.
-fn find_id(listener: &lan::Listener, id: iroh::EndpointId) -> fealty::lan::Found {
+fn find_id(listener: &lan::Listener, id: iroh::EndpointId) -> sworn::lan::Found {
     find(listener, |f| f.beacon.id == id)
 }
 
-fn find(listener: &lan::Listener, want: impl Fn(&fealty::lan::Found) -> bool) -> fealty::lan::Found {
+fn find(listener: &lan::Listener, want: impl Fn(&sworn::lan::Found) -> bool) -> sworn::lan::Found {
     let mut found = None;
     until("the LAN beacon", 15, || {
         found = listener.hosts().into_iter().find(&want);
@@ -191,7 +191,7 @@ fn the_host_drops_and_resumes_from_the_save() {
         lost
     });
 
-    let saved = fealty::save::load(&path).unwrap();
+    let saved = sworn::save::load(&path).unwrap();
     assert_eq!(saved.season, 1);
     let mut lobby = HostLobby::resume(saved, path.clone());
     until("the host endpoint", 20, || {
@@ -218,11 +218,11 @@ fn the_host_drops_and_resumes_from_the_save() {
 
 #[test]
 fn hosting_and_joining_through_the_screens() {
-    use fealty::tui::{Screen, Ui};
+    use sworn::tui::{Screen, Ui};
     use ratatui::backend::TestBackend;
     use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
     use ratatui::Terminal;
-    let dir = std::env::temp_dir().join(format!("fealty-test-{}-screens", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("sworn-test-{}-screens", std::process::id()));
     std::env::set_var("XDG_DATA_HOME", &dir);
     let press = |ui: &mut Ui, c: KeyCode| ui.event(Event::Key(KeyEvent::new(c, KeyModifiers::NONE)));
     let text = |t: &Terminal<TestBackend>| {
@@ -244,7 +244,7 @@ fn hosting_and_joining_through_the_screens() {
     until("the host to open", 20, || {
         host.tick();
         t.draw(|f| host.draw(f)).unwrap();
-        text(&t).contains("fealty --join")
+        text(&t).contains("sworn --join")
     });
 
     let mut guest = Ui::joining(None);
@@ -310,7 +310,7 @@ fn hosting_and_joining_through_the_screens() {
         t.draw(|f| guest.draw(f)).unwrap();
         text(&t).contains("Spring 800 is over")
     });
-    assert!(dir.join("fealty/hosted.fealty").exists());
+    assert!(dir.join("sworn/hosted.sworn").exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
 

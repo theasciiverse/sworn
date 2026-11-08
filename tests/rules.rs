@@ -1,6 +1,6 @@
-use fealty::chronicle::EventKind;
-use fealty::rng::Rng;
-use fealty::{save, Faction, Game, Kind, Map, NewNoble, Order, Outcome, Rules, Setup, Term, Title, Visibility};
+use sworn::chronicle::EventKind;
+use sworn::rng::Rng;
+use sworn::{save, Faction, Game, Kind, Map, NewNoble, Order, Outcome, Rules, Setup, Term, Title, Visibility};
 
 // Ann(0) and Bo(1) are Saxons, Cy(2) Moravian: no combat bonuses, so the
 // arithmetic below is plain troop counts.
@@ -339,7 +339,7 @@ fn bo_attacks_ann(gift: bool) -> bool {
         assert!(g.chronicle.iter().any(|e| matches!(e.kind, EventKind::Deal { .. })), "Bo took the gold");
         g.map.provinces[0].troops = 1;
     }
-    let turn = fealty::ai::plan(&g.view(1));
+    let turn = sworn::ai::plan(&g.view(1));
     turn.orders.iter().any(|o| matches!(o, Order::March { to: 0, .. }))
 }
 

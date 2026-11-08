@@ -1,4 +1,4 @@
-//! Fealty's rules core: the realm, the nobles, their orders and letters, and
+//! Sworn's rules core: the realm, the nobles, their orders and letters, and
 //! the resolution of a season. Pure and deterministic: no screen, no network,
 //! no clock. The same `Game` and the same orders always give the same result,
 //! which is what lets any player who holds a save take over as host.

@@ -1,8 +1,8 @@
 //! Renders the game screen offscreen and prints it, for checking layout
 //! without a terminal: cargo run --example screens -- [WIDTH HEIGHT] [keys]
-use fealty::court::LocalCourt;
-use fealty::tui::{self, Ui};
-use fealty::Faction;
+use sworn::court::LocalCourt;
+use sworn::tui::{self, Ui};
+use sworn::Faction;
 use ratatui::backend::TestBackend;
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Terminal;

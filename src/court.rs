@@ -123,21 +123,40 @@ impl Court for LocalCourt {
     }
 }
 
-/// Where saves live: `$XDG_DATA_HOME/fealty`, else `~/.local/share/fealty`.
+/// Where saves live: `$XDG_DATA_HOME/sworn`, else `~/.local/share/sworn`.
 pub fn data_dir() -> PathBuf {
-    let base = std::env::var_os("XDG_DATA_HOME")
+    data_home().join("sworn")
+}
+
+fn data_home() -> PathBuf {
+    std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-        .unwrap_or_else(|| PathBuf::from("."));
-    base.join("fealty")
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+/// The game was called Fealty before: carry its saves over, once.
+pub fn migrate_old_saves() {
+    let (old, new) = (data_home().join("fealty"), data_dir());
+    if new.exists() || !old.is_dir() {
+        return;
+    }
+    if let Err(e) = std::fs::rename(&old, &new) {
+        log::warn!("could not move {} to {}: {e}", old.display(), new.display());
+        return;
+    }
+    for name in ["autosave", "hosted"] {
+        let _ = std::fs::rename(new.join(format!("{name}.fealty")), new.join(format!("{name}.sworn")));
+    }
+    log::info!("moved old Fealty saves to {}", new.display());
 }
 
 pub fn autosave_path() -> PathBuf {
-    data_dir().join("autosave.fealty")
+    data_dir().join("autosave.sworn")
 }
 
 /// The save of the game this machine hosts for others.
 pub fn hosted_path() -> PathBuf {
-    data_dir().join("hosted.fealty")
+    data_dir().join("hosted.sworn")
 }

@@ -21,7 +21,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
-const ALPN: &[u8] = b"fealty/1";
+const ALPN: &[u8] = b"sworn/1";
 /// A whole View with a long game's letters and chronicle fits easily.
 const MAX_FRAME: usize = 8 << 20;
 const MAX_JOINERS: usize = 7;
@@ -81,7 +81,7 @@ impl Net {
         let (cmd_tx, cmd_rx) = unbounded_channel();
         let (evt_tx, evt_rx) = mpsc::channel();
         let fail = evt_tx.clone();
-        let spawned = std::thread::Builder::new().name("fealty-net".into()).spawn(move || {
+        let spawned = std::thread::Builder::new().name("sworn-net".into()).spawn(move || {
             match tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() {
                 Ok(rt) => rt.block_on(f(cmd_rx, evt_tx)),
                 Err(e) => {

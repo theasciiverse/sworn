@@ -1,8 +1,8 @@
-use fealty::court::LocalCourt;
-use fealty::rng::Rng;
-use fealty::tui::play::Popup;
-use fealty::tui::{self, Screen, Ui};
-use fealty::Faction;
+use sworn::court::LocalCourt;
+use sworn::rng::Rng;
+use sworn::tui::play::Popup;
+use sworn::tui::{self, Screen, Ui};
+use sworn::Faction;
 use ratatui::backend::TestBackend;
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::Terminal;
@@ -146,8 +146,8 @@ fn the_end_screen_draws_charts() {
 
 #[test]
 fn last_seasons_battle_flashes_on_the_map_after_the_report() {
-    use fealty::tui::map::Flash;
-    use fealty::Order;
+    use sworn::tui::map::Flash;
+    use sworn::Order;
     let mut ui = ui(3, 4);
     let Screen::Play(p) = &mut ui.screen else { panic!("not playing") };
     // March everything from a home province on a neighbour that is not ours.
@@ -182,7 +182,7 @@ fn last_seasons_battle_flashes_on_the_map_after_the_report() {
 
     // And stops.
     let Screen::Play(p) = &mut ui.screen else { panic!("not playing") };
-    p.flash_start = Some(std::time::Instant::now() - fealty::tui::play::FLASH_FOR);
+    p.flash_start = Some(std::time::Instant::now() - sworn::tui::play::FLASH_FOR);
     ui.tick();
     t.draw(|f| ui.draw(f)).unwrap();
     assert!(!screen_text(&t).contains('✶'));
@@ -192,7 +192,7 @@ fn last_seasons_battle_flashes_on_the_map_after_the_report() {
 
 #[test]
 fn a_clash_on_the_road_is_marked_halfway() {
-    use fealty::tui::map::{self, Flash, MapMarks};
+    use sworn::tui::map::{self, Flash, MapMarks};
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
     let g = tui::new_local_game("David", Faction::Danes, 4, 5).unwrap();

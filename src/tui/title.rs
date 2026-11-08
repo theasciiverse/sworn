@@ -9,10 +9,10 @@ use ratatui::widgets::{Block, BorderType, Paragraph};
 use ratatui::Frame;
 
 const BANNER: &[&str] = &[
-    "  ___  ___   _   _  _____ __   __",
-    " | __|| __| /_\\ | ||_   _|\\ \\ / /",
-    " | _| | _| / _ \\| |__| |   \\ V / ",
-    " |_|  |___/_/ \\_\\____|_|    |_|  ",
+    " ___ __      __  ___   ___  _  _ ",
+    "/ __|\\ \\    / / / _ \\ | _ \\| \\| |",
+    "\\__ \\ \\ \\/\\/ / | (_) ||   /| .` |",
+    "|___/  \\_/\\_/   \\___/ |_|_\\|_|\\_|",
 ];
 const GOLD: Color = Color::Indexed(220);
 const DIM: Style = Style::new().fg(Color::Indexed(245));

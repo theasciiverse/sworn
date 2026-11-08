@@ -1,6 +1,6 @@
 //! Plays many computer games and reports who wins:
 //! cargo run --release --example balance -- [GAMES]
-use fealty::{Faction, Game, NewNoble, Rules, Setup};
+use sworn::{Faction, Game, NewNoble, Rules, Setup};
 use std::collections::BTreeMap;
 
 fn main() {
@@ -27,10 +27,10 @@ fn main() {
         seasons += g.season;
         for e in &g.chronicle {
             match &e.kind {
-                fealty::EventKind::GameOver { crowned: true, .. } => crowned += 1,
-                fealty::EventKind::Sworn { .. } => oaths += 1,
-                fealty::EventKind::OathBroken { .. } | fealty::EventKind::Renounced { .. } => broken += 1,
-                fealty::EventKind::Deal { .. } => deals += 1,
+                sworn::EventKind::GameOver { crowned: true, .. } => crowned += 1,
+                sworn::EventKind::Sworn { .. } => oaths += 1,
+                sworn::EventKind::OathBroken { .. } | sworn::EventKind::Renounced { .. } => broken += 1,
+                sworn::EventKind::Deal { .. } => deals += 1,
                 _ => {}
             }
         }

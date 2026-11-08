@@ -1,9 +1,9 @@
-//! Fealty: the terminal game, or with --simulate a headless game between
+//! Sworn: the terminal game, or with --simulate a headless game between
 //! computer nobles that prints the chronicle.
 
-use fealty::court::LocalCourt;
-use fealty::tui::{self, Ui};
-use fealty::{save, season_name, Faction, Game, NewNoble, Rules, Setup, Visibility};
+use sworn::court::LocalCourt;
+use sworn::tui::{self, Ui};
+use sworn::{save, season_name, Faction, Game, NewNoble, Rules, Setup, Visibility};
 use ratatui::crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use ratatui::crossterm::execute;
 use std::io;
@@ -12,14 +12,15 @@ use std::path::PathBuf;
 const NAMES: &[&str] = &["Aldric", "Brynja", "Cedric", "Dagny", "Eadric", "Frida", "Godwin", "Hild"];
 
 fn main() -> io::Result<()> {
-    // Session logging: RUST_LOG=debug fealty 2>fealty.log
+    // Session logging: RUST_LOG=debug sworn 2>sworn.log
     env_logger::init();
+    sworn::court::migrate_old_saves();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "fealty [--load FILE | --host | --join [ID]]\n\
-             fealty --simulate [--seed N] [--nobles N] [--all]\n\n\
-             Multiplayer medieval politics for the terminal (working title).\n\
+            "sworn [--load FILE | --host | --join [ID]]\n\
+             sworn --simulate [--seed N] [--nobles N] [--all]\n\n\
+             Multiplayer medieval politics for the terminal.\n\
              Rise from lesser noble to king of your people. In game, ? shows the keys.\n\
              --load FILE  continue a saved game (saves go to {})\n\
              --host       host a game for others on the LAN or the internet\n\
@@ -27,7 +28,7 @@ fn main() -> io::Result<()> {
              --join ID    join a host by its id (works across the internet)\n\
              --simulate   computer nobles play a whole game; prints the chronicle\n\
              --all        with --simulate, print private events too",
-            fealty::court::data_dir().display()
+            sworn::court::data_dir().display()
         );
         return Ok(());
     }
