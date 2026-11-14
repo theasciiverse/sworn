@@ -8,6 +8,8 @@ fn main() {
     let mut wins: BTreeMap<&str, u32> = BTreeMap::new();
     let mut seats: BTreeMap<&str, u32> = BTreeMap::new();
     let (mut crowned, mut seasons, mut oaths, mut broken, mut deals) = (0, 0, 0, 0, 0);
+    // How far the realm is claimed after three years: the pace a player meets.
+    let (mut claimed3, mut provinces3) = (0usize, 0usize);
     for seed in 0..games {
         let count = 3 + (seed % 6) as usize;
         // Rotate who sits where so faction and start position are independent.
@@ -19,6 +21,10 @@ fn main() {
         }
         let mut g = Game::new(Setup { seed, nobles, rules: Rules::default() }).unwrap();
         while g.winner.is_none() {
+            if g.season == 12 {
+                provinces3 += g.map.provinces.len();
+                claimed3 += g.map.provinces.iter().filter(|p| p.owner.is_some()).count();
+            }
             g.play_ai();
             g.resolve();
         }
@@ -36,6 +42,7 @@ fn main() {
         }
     }
     println!("{games} games, {crowned} crowned, {:.1} years on average", seasons as f64 / games as f64 / 4.0);
+    println!("after three years {:.0}% of the realm is claimed", 100.0 * claimed3 as f64 / provinces3.max(1) as f64);
     println!("per game: {:.2} oaths sworn, {:.2} broken, {:.2} deals", oaths as f64 / games as f64, broken as f64 / games as f64, deals as f64 / games as f64);
     for (f, s) in &seats {
         let w = wins.get(f).copied().unwrap_or(0);

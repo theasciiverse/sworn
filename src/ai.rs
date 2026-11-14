@@ -53,6 +53,22 @@ fn paid_me(v: &View) -> BTreeMap<NobleId, u32> {
     paid
 }
 
+/// Gold I have paid each noble in deals over the last four seasons: peace
+/// bought is peace kept, or the plea was a lie.
+fn i_paid(v: &View) -> BTreeMap<NobleId, u32> {
+    let mut paid = BTreeMap::new();
+    for e in v.events.iter().filter(|e| e.season + 4 >= v.season) {
+        if let EventKind::Deal { offer: o } = &e.kind {
+            if o.from == v.me {
+                *paid.entry(o.to).or_default() += gold_in(&o.give);
+            } else if o.to == v.me {
+                *paid.entry(o.from).or_default() += gold_in(&o.want);
+            }
+        }
+    }
+    paid
+}
+
 /// Letters written at the start of a season: pleas, demands, warnings.
 fn write_letters(v: &View, mine: &[ProvinceId], paid: &BTreeMap<NobleId, u32>, gold: u32, turn: &mut AiTurn) {
     let me = v.noble(v.me);
@@ -238,7 +254,8 @@ pub fn plan(v: &View) -> AiTurn {
     }
     let liege = if turn.orders.contains(&Order::Renounce) { None } else { me.liege.or(new_liege) };
     let paid = paid_me(v);
-    let truce = |n: NobleId| paid.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE;
+    let bought = i_paid(v);
+    let truce = |n: NobleId| paid.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE || bought.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE;
     // Whoever I have just asked to kneel gets the season to answer.
     let asked = |n: NobleId| v.offers.iter().any(|o| o.from == v.me && o.to == n && o.season == v.season && o.want.contains(&Term::Fealty));
     let friendly = |n: NobleId| {
@@ -258,33 +275,6 @@ pub fn plan(v: &View) -> AiTurn {
     };
     let border: Vec<ProvinceId> = mine.iter().copied().filter(|&p| v.province(p).neighbours.iter().any(|&q| hostile(q))).collect();
 
-    // Raise on the borders, most threatened first, keeping a purse for upkeep.
-    let my_troops: u32 = mine.iter().map(|&p| v.province(p).troops.unwrap_or(0)).sum();
-    let cost = me.faction.raise_cost(v.rules.raise_cost).max(1);
-    let reserve = my_troops / me.faction.upkeep_per(v.rules.troops_per_upkeep).max(1) * 2 + 2;
-    let mut budget = gold.saturating_sub(reserve) / cost;
-    let mut raised: BTreeMap<ProvinceId, u32> = BTreeMap::new();
-    let mut order: Vec<ProvinceId> = border.clone();
-    order.sort_by_key(|&p| std::cmp::Reverse(threat(p)));
-    while budget > 0 && !order.is_empty() {
-        let mut any = false;
-        for &p in &order {
-            let cap = v.rules.raise_cap * v.province(p).kind.raise_multiplier();
-            let r = raised.entry(p).or_default();
-            if budget > 0 && *r < cap {
-                *r += 1;
-                budget -= 1;
-                any = true;
-            }
-        }
-        if !any {
-            break;
-        }
-    }
-    for (&at, &count) in &raised {
-        turn.orders.push(Order::Raise { at, count });
-    }
-
     // Kneel if hopelessly outmatched by a neighbour, once a year.
     if liege.is_none() && me.power <= 1 && v.season.is_multiple_of(4) && !v.offers.iter().any(|o| o.from == v.me) {
         let strongest = mine
@@ -302,6 +292,98 @@ pub fn plan(v: &View) -> AiTurn {
     }
 
     write_letters(v, &mine, &paid, gold, &mut turn);
+    // Nor do I march on anyone I am offering gold for peace this season.
+    // (Letters go out before orders, so the offer may already be open.)
+    let pleading: Vec<NobleId> = turn
+        .letters
+        .iter()
+        .filter(|d| d.offer.as_ref().is_some_and(|(give, want)| gold_in(give) > 0 && want.is_empty()))
+        .flat_map(|d| d.to.iter().copied())
+        .chain(v.offers.iter().filter(|o| o.from == v.me && gold_in(&o.give) > 0 && o.want.is_empty()).map(|o| o.to))
+        .collect();
+    let hostile = |p: ProvinceId| hostile(p) && v.province(p).owner.is_none_or(|o| !pleading.contains(&o));
+
+    // What each conquest within reach needs, cheapest and richest first.
+    let mut targets: Vec<(u32, ProvinceId)> = vec![];
+    for p in v.provinces.iter().filter(|p| hostile(p.id)) {
+        if !p.neighbours.iter().any(|q| mine.contains(q)) {
+            continue;
+        }
+        let fac = p.owner.map_or(100, |o| v.noble(o).faction.defence_pct());
+        let def = p.troops.unwrap_or(UNSEEN) as u64 * p.kind.defence_pct() * fac / 10_000;
+        // Local levies never reinforce, so they need less of a margin.
+        let margin = if p.owner.is_none() { def * 5 / 4 } else { def * 3 / 2 };
+        let need = ((margin + 1) * 100).div_ceil(me.faction.attack_pct()) as u32;
+        targets.push((need, p.id));
+    }
+    // Everyone leans on whoever is closest to the crown.
+    let total = v.provinces.len() as u32;
+    let leader = v.nobles.iter().filter(|n| n.alive && n.id != v.me).max_by_key(|n| n.power).filter(|n| n.power * 100 >= total * LEADER_PCT).map(|n| n.id);
+    let urgency = |need: u32, id: ProvinceId| if leader.is_some() && v.province(id).owner == leader { need * 2 / 3 } else { need };
+    let mut keyed: Vec<_> =
+        targets.into_iter().map(|(need, id)| ((urgency(need, id), std::cmp::Reverse(v.province(id).kind.income()), rng.below(100)), (need, id))).collect();
+    keyed.sort_by_key(|k| k.0);
+    let targets: Vec<(u32, ProvinceId)> = keyed.into_iter().map(|k| k.1).collect();
+
+    // Raise, keeping a purse for upkeep: first what threatened borders need
+    // to hold, then what the cheapest conquests lack (mustered where they
+    // will march from), then the rest along the borders.
+    let troops = |p: ProvinceId| v.province(p).troops.unwrap_or(0);
+    let keep = |p: ProvinceId| if border.contains(&p) { (threat(p) / 2).max(1) } else { 0 };
+    let my_troops: u32 = mine.iter().map(|&p| troops(p)).sum();
+    let cost = me.faction.raise_cost(v.rules.raise_cost).max(1);
+    let reserve = my_troops / me.faction.upkeep_per(v.rules.troops_per_upkeep).max(1) * 2 + 2;
+    let mut budget = gold.saturating_sub(reserve) / cost;
+    let cap = |p: ProvinceId| v.rules.raise_cap * v.province(p).kind.raise_multiplier();
+    let mut raised: BTreeMap<ProvinceId, u32> = BTreeMap::new();
+    let raise = |raised: &mut BTreeMap<ProvinceId, u32>, budget: &mut u32, p: ProvinceId, n: u32| {
+        let r = raised.entry(p).or_default();
+        let k = n.min(cap(p).saturating_sub(*r)).min(*budget);
+        *r += k;
+        *budget -= k;
+    };
+    let mut by_threat: Vec<ProvinceId> = border.clone();
+    by_threat.sort_by_key(|&p| std::cmp::Reverse(threat(p)));
+    for &p in &by_threat {
+        raise(&mut raised, &mut budget, p, keep(p).saturating_sub(troops(p)));
+    }
+    let mut free: BTreeMap<ProvinceId, u32> = mine.iter().map(|&p| (p, (troops(p) + raised.get(&p).copied().unwrap_or(0)).saturating_sub(keep(p)))).collect();
+    let mut mustered = 0;
+    for &(need, t) in &targets {
+        if mustered >= 3 || budget == 0 {
+            break;
+        }
+        let mut sources: Vec<ProvinceId> = v.province(t).neighbours.iter().copied().filter(|q| mine.contains(q)).collect();
+        let have: u32 = sources.iter().map(|q| free[q]).sum();
+        let room: u32 = sources.iter().map(|&q| cap(q).saturating_sub(raised.get(&q).copied().unwrap_or(0))).sum::<u32>().min(budget);
+        if have + room < need.max(1) {
+            continue;
+        }
+        let mut short = need.max(1).saturating_sub(have);
+        sources.sort_by_key(|&q| std::cmp::Reverse(cap(q).saturating_sub(raised.get(&q).copied().unwrap_or(0))));
+        for &q in &sources {
+            let before = raised.get(&q).copied().unwrap_or(0);
+            raise(&mut raised, &mut budget, q, short);
+            short -= raised[&q] - before;
+        }
+        for q in sources {
+            free.insert(q, 0);
+        }
+        mustered += 1;
+    }
+    while budget > 0 && !by_threat.is_empty() {
+        let before = budget;
+        for &p in &by_threat {
+            raise(&mut raised, &mut budget, p, 1);
+        }
+        if budget == before {
+            break;
+        }
+    }
+    raised.retain(|_, n| *n > 0);
+    for (&at, &count) in &raised {
+        turn.orders.push(Order::Raise { at, count });
+    }
 
     if is_winter(v.season) && !v.rules.winter_marches {
         return turn;
@@ -311,25 +393,10 @@ pub fn plan(v: &View) -> AiTurn {
     let mut spare: BTreeMap<ProvinceId, u32> = BTreeMap::new();
     for &p in &mine {
         let have = v.province(p).troops.unwrap_or(0) + raised.get(&p).copied().unwrap_or(0);
-        let keep = if border.contains(&p) { (threat(p) / 2).max(1) } else { 0 };
-        spare.insert(p, have.saturating_sub(keep));
+        spare.insert(p, have.saturating_sub(keep(p)));
     }
     answer_calls(v, liege, &mine, &mut spare, &mut turn);
 
-    let mut targets: Vec<(u32, ProvinceId)> = vec![];
-    for p in v.provinces.iter().filter(|p| hostile(p.id)) {
-        if !p.neighbours.iter().any(|q| mine.contains(q)) {
-            continue;
-        }
-        let def = p.troops.unwrap_or(UNSEEN) as u64 * p.kind.defence_pct() / 100;
-        let need = ((def * 3 / 2 + 1) * 100).div_ceil(me.faction.attack_pct()) as u32;
-        targets.push((need, p.id));
-    }
-    // Everyone leans on whoever is closest to the crown.
-    let total = v.provinces.len() as u32;
-    let leader = v.nobles.iter().filter(|n| n.alive && n.id != v.me).max_by_key(|n| n.power).filter(|n| n.power * 100 >= total * LEADER_PCT).map(|n| n.id);
-    let urgency = |need: u32, id: ProvinceId| if leader.is_some() && v.province(id).owner == leader { need * 2 / 3 } else { need };
-    targets.sort_by_key(|&(need, id)| (urgency(need, id), std::cmp::Reverse(v.province(id).kind.income()), rng.below(100)));
     let mut attacks = 0;
     for (need, t) in targets {
         if attacks >= 3 {

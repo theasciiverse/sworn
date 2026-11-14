@@ -438,6 +438,35 @@ fn boxed(f: &mut Frame, r: Rect, title: &str, text: Text, scroll: u16) {
     f.render_widget(Paragraph::new(text).block(block).wrap(Wrap { trim: false }).scroll((scroll, 0)), r);
 }
 
+/// How a march looks against the troops there now: what a player would
+/// otherwise work out from walls and the peoples' bonuses by hand.
+fn odds_line(v: &View, to: &crate::view::ProvinceView, count: u32, ally: Option<crate::NobleId>) -> Line<'static> {
+    let mine = to.owner == Some(v.me);
+    if mine || (ally.is_some() && ally == to.owner) {
+        return Line::raw("");
+    }
+    let Some(troops) = to.troops else {
+        return Line::styled("  Their numbers are hidden from you.", DIM);
+    };
+    let attack = count as u64 * v.noble(v.me).faction.attack_pct();
+    let fac = to.owner.map_or(100, |o| v.noble(o).faction.defence_pct());
+    let defence = troops as u64 * fac * to.kind.defence_pct() / 100;
+    let (a, d) = (attack.div_ceil(100), defence.div_ceil(100));
+    let (verdict, color) = if attack > defence && to.owner.is_none() {
+        ("enough", Color::Indexed(114))
+    } else if attack > defence {
+        ("enough if not reinforced", Color::Indexed(114))
+    } else if attack == defence {
+        ("a bloody draw", Color::Indexed(220))
+    } else {
+        ("not enough", Color::Indexed(203))
+    };
+    Line::from(vec![
+        Span::styled(format!("  Strength {a} against {d}: "), DIM),
+        Span::styled(verdict, Style::new().fg(color)),
+    ])
+}
+
 fn draw_popup(f: &mut Frame, map_area: Rect, play: &Play) {
     let full = f.area();
     let v = play.court.view();
@@ -474,6 +503,7 @@ fn draw_popup(f: &mut Frame, map_area: Rect, play: &Play) {
                         .chain(what)
                         .collect::<Vec<_>>(),
                 ),
+                odds_line(v, to, *count, *ally),
                 Line::from(vec![
                     key("↑↓"),
                     Span::raw(" where  "),
@@ -485,7 +515,7 @@ fn draw_popup(f: &mut Frame, map_area: Rect, play: &Play) {
                     Span::raw(" order"),
                 ]),
             ]);
-            boxed(f, bottom_of(map_area, 64, 5), "March", text, 0);
+            boxed(f, bottom_of(map_area, 64, 6), "March", text, 0);
         }
         Popup::Compose(c) => draw_compose(f, full, play, c),
         Popup::Read { letter, scroll } => {
@@ -674,7 +704,7 @@ fn first_season_text(v: &View) -> Text<'static> {
         Line::raw(format!("{}, you hold {home} and little else. To rule the {} you", me.name, me.faction.name())),
         Line::raw(format!("must one day hold {seat} and have every other {} sworn to you.", me.faction.one())),
         Line::raw(""),
-        step("r", "raise troops in your province; they cost gold to raise and keep"),
+        step("r", "raise troops; they can march this same season, and cost gold to keep"),
         step("m", "march on an unclaimed neighbour with more men than its levies"),
         step("e", "end the season: every noble's orders happen at once"),
         Line::raw(""),
