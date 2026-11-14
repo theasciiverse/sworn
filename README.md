@@ -13,6 +13,7 @@ season turns.
     cargo run --release -- --host  # host a table for others
     cargo run --release -- --join  # find tables on the local network
     cargo run --release -- --join <ID>   # join a host across the internet
+    cargo run --release -- --seed 7      # new games on the same realm each time
 
 In game, press `?` for the keys. Briefly: arrows move on the map, `r` raises troops, `m`
 marches (`b` to fight on someone else's behalf), `w` writes a letter with an optional offer,

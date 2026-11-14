@@ -101,12 +101,20 @@ play Sworn ones. Saves live in `$XDG_STATE_HOME/sworn/` (`*.sworn`; moved there 
       (end of season, timer running low) is a taste call. Juice so far: battle flashes
 - [ ] LAN port 31460 is Sworn's. Note `sigpipe` and `sleighride` both use 31459
 
+## Status (2026-11-14)
+
+0.2.0: played against the computer nobles and over LAN and iroh between two local
+processes, tuned (see `ROADMAP.md`), catalog drafts in `asciiverse/` (`sworn.toml`,
+`sworn.md`, the 100x30 `sworn.cast` recorded with `hub/tools/castrec.py`), release
+workflow in `.github/workflows/release.yml` (static musl Linux, macOS, Windows).
+
 ## Status (2026-11-07)
 
 Playable: single player against computer nobles, and multiplayer over iroh (LAN discovery or
 an id across the internet), with saves, rejoining and rehosting.
 
 - `sworn` title menu; `sworn --host`, `sworn --join [ID]`, `sworn --load FILE`;
+  `sworn --seed N` plays new games on realm N;
   `sworn --simulate [--seed N] [--nobles N] [--all]` prints a whole computer game.
   Session logging: `RUST_LOG=debug sworn 2>sworn.log`.
 - Rules: `map.rs` generation, `game.rs` state, `diplomacy.rs` letters and offers, `resolve.rs`

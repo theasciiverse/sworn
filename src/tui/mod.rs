@@ -60,7 +60,17 @@ pub fn new_local_game(name: &str, faction: Faction, count: usize, seed: u64) -> 
     Game::new(GameSetup { seed, nobles, rules: Rules::default() })
 }
 
+static FIXED_SEED: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+
+/// `sworn --seed N`: new games get this realm instead of a fresh one.
+pub fn fix_seed(seed: u64) {
+    let _ = FIXED_SEED.set(seed);
+}
+
 pub fn seed_from_clock() -> u64 {
+    if let Some(&s) = FIXED_SEED.get() {
+        return s;
+    }
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.as_nanos() as u64)
 }
 

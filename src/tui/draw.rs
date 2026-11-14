@@ -192,8 +192,7 @@ fn orders_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
     }
     lines.push(Line::raw(""));
     if play.draft.is_empty() {
-        lines.push(Line::styled("No orders yet. Select a province of yours", DIM));
-        lines.push(Line::styled("and press r to raise or m to march.", DIM));
+        lines.push(Line::styled("No orders yet. Select a province of yours and press r to raise or m to march.", DIM));
     }
     for (i, o) in play.draft.iter().enumerate() {
         let style = if i == sel { Style::new().reversed() } else { Style::new() };
@@ -226,7 +225,15 @@ fn letters_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
                 "· ".into()
             };
         }
-        let first: String = l.body.lines().next().unwrap_or("").chars().take(60).collect();
+        // A preview of two lines or so, cut at a word with an ellipsis.
+        let line = l.body.lines().next().unwrap_or("");
+        let first: String = if line.chars().count() <= 60 {
+            line.to_string()
+        } else {
+            let cut: String = line.chars().take(58).collect();
+            let cut = cut.rsplit_once(' ').map_or(cut.as_str(), |(a, _)| a).trim_end_matches([',', '.', ';', ':']);
+            format!("{cut}…")
+        };
         let head = Line::from(vec![
             Span::styled(mark, KEY),
             Span::styled(format!("{} ", short_season(l.season)), DIM),

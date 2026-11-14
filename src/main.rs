@@ -17,7 +17,7 @@ fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "sworn [--load FILE | --host | --join [ID]]\n\
+            "sworn [--load FILE | --host | --join [ID]] [--seed N]\n\
              sworn --simulate [--seed N] [--nobles N] [--all]\n\n\
              Multiplayer medieval politics for the terminal.\n\
              Rise from lesser noble to king of your people. In game, ? shows the keys.\n\
@@ -25,6 +25,7 @@ fn main() -> io::Result<()> {
              --host       host a game for others on the LAN or the internet\n\
              --join       look for games on the local network\n\
              --join ID    join a host by its id (works across the internet)\n\
+             --seed N     new games are played on realm N (the same map each time)\n\
              --simulate   computer nobles play a whole game; prints the chronicle\n\
              --all        with --simulate, print private events too",
             sworn::court::state_dir().display()
@@ -34,6 +35,9 @@ fn main() -> io::Result<()> {
     if args.iter().any(|a| a == "--simulate") {
         simulate(&args);
         return Ok(());
+    }
+    if let Some(seed) = args.iter().position(|a| a == "--seed").and_then(|i| args.get(i + 1)).and_then(|v| v.parse::<u64>().ok()) {
+        tui::fix_seed(seed);
     }
     let mut ui = match args.iter().position(|a| a == "--load").and_then(|i| args.get(i + 1)) {
         Some(path) => {
