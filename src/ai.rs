@@ -314,6 +314,8 @@ pub fn plan(v: &View) -> AiTurn {
         let keep = if border.contains(&p) { (threat(p) / 2).max(1) } else { 0 };
         spare.insert(p, have.saturating_sub(keep));
     }
+    answer_calls(v, liege, &mine, &mut spare, &mut turn);
+
     let mut targets: Vec<(u32, ProvinceId)> = vec![];
     for p in v.provinces.iter().filter(|p| hostile(p.id)) {
         if !p.neighbours.iter().any(|q| mine.contains(q)) {
@@ -367,6 +369,46 @@ pub fn plan(v: &View) -> AiTurn {
         }
     }
     turn
+}
+
+/// A liege's call to arms: a letter this season that names a province and
+/// says what to do there ("march on Tavton", "help me take Osmoor"). A
+/// vassal that can reach it sends what it can spare to fight there for its
+/// liege, and says so; one grown bigger than its liege does not answer.
+fn answer_calls(v: &View, liege: Option<NobleId>, mine: &[ProvinceId], spare: &mut BTreeMap<ProvinceId, u32>, turn: &mut AiTurn) {
+    let Some(l) = liege else { return };
+    if v.noble(v.me).power > v.noble(l).power {
+        return;
+    }
+    let words = |text: &str| -> Vec<String> { text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_lowercase).collect() };
+    for letter in v.letters.iter().filter(|x| x.from == l && x.season == v.season && x.to.contains(&v.me)) {
+        let said = words(&letter.body);
+        const CALLS: [&str; 9] = ["march", "attack", "take", "strike", "seize", "send", "help", "join", "fight"];
+        if !said.iter().any(|w| CALLS.contains(&w.as_str())) {
+            continue;
+        }
+        let named = v.provinces.iter().find(|p| {
+            said.contains(&p.name.to_lowercase()) && p.owner.is_none_or(|o| o != l && o != v.me && v.noble(o).liege != Some(l))
+        });
+        let Some(target) = named else { continue };
+        let mut sent = 0;
+        for &q in target.neighbours.iter().filter(|q| mine.contains(q)) {
+            let c = spare.get(&q).copied().unwrap_or(0);
+            if c > 0 {
+                spare.insert(q, 0);
+                sent += c;
+                turn.orders.push(Order::March { from: q, to: target.id, count: c, on_behalf: Some(l) });
+            }
+        }
+        let body = if sent > 0 {
+            format!("My lord, {sent} of my men march on {} for you this season.", target.name)
+        } else {
+            format!("My lord, I have no men within reach of {}.", target.name)
+        };
+        if !v.noble(l).ai {
+            turn.replies.push(Draft { to: vec![l], body, offer: None });
+        }
+    }
 }
 
 /// Whether the oath I swore is all that stands between me and the crown of

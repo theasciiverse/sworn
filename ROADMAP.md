@@ -1,8 +1,8 @@
 # Roadmap
 
-Sworn is at 0.2.0 (2026-11-14): played against the computer nobles by
-Claude in a terminal and tuned from that, with a catalog page and the
-first release. 1.0.0 is when everything below is in. The open questions
+Sworn is at 0.3.0 (2026-11-14): played against the computer nobles by
+Claude in a terminal and tuned from that, in the catalog, with the court
+of 0.3.0 mostly in. 1.0.0 is when everything below is in. The open questions
 behind some of these are in `CLAUDE.md`.
 
 ## 0.1.0: built (2026-11-07)
@@ -28,12 +28,13 @@ behind some of these are in `CLAUDE.md`.
 - [x] Saves in the state folder; `--seed N`
 - [x] Catalog page, preview and release workflow
 
-## 0.3.0: the court
+## 0.3.0: the court (released with the map names still to do)
 
 - [x] Help that teaches: a new game opens with a word on raising,
   marching and ending the season, and where the crown's needs are shown
-- [ ] Liege and vassal duties: a liege can call a vassal to march, and the
-  computer nobles answer (or quietly don't)
+- [x] Liege and vassal duties: a liege's letter that names a province
+  ("march on Osmoor") calls a computer vassal to fight there for it; one
+  grown bigger than its liege does not answer
 - [x] Computer nobles that betray when it pays: a vassal whose oath is all
   that stands between it and its people's crown renounces
 - [ ] Map names that stay readable at 80x24

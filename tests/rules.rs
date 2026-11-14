@@ -458,3 +458,16 @@ fn a_computer_vassal_renounces_when_only_its_oath_bars_the_crown() {
     let turn = sworn::ai::plan(&g.view(1));
     assert!(!turn.orders.contains(&Order::Renounce));
 }
+
+#[test]
+fn a_computer_vassal_answers_its_liege_s_call_to_arms() {
+    let mut g = game();
+    g.nobles[1].ai = true;
+    own(&mut g, 4, 0, 5); // Ann holds A and F, Bo only B
+    g.nobles[1].liege = Some(0);
+    g.send_letter(0, &[1], "Bo, march on C with all you can spare.", None).unwrap();
+    g.ai_orders();
+    let orders = g.orders[1].clone().unwrap();
+    assert!(orders.iter().any(|o| matches!(o, Order::March { to: 2, on_behalf: Some(0), .. })), "{orders:?}");
+    assert!(g.letters.iter().any(|l| l.from == 1 && l.body.contains("march on C")), "and says so");
+}

@@ -709,7 +709,7 @@ fn help_text() -> Text<'static> {
         Line::raw("defenders. Marching on your liege or vassal breaks your oath"),
         Line::raw("before the whole realm. Enemies marching opposite ways along a"),
         Line::raw("road meet halfway and fight troop for troop. No marching in winter."),
-        Line::raw(""),
+        Line::raw("Computer vassals answer a call to arms: write \"march on Osmoor\"."),
         Line::styled("Any key to close.", DIM),
     ])
 }
