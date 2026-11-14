@@ -239,7 +239,11 @@ pub fn plan(v: &View) -> AiTurn {
     let liege = if turn.orders.contains(&Order::Renounce) { None } else { me.liege.or(new_liege) };
     let paid = paid_me(v);
     let truce = |n: NobleId| paid.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE;
-    let friendly = |n: NobleId| n == v.me || liege == Some(n) || v.noble(n).liege == Some(v.me) || new_vassals.contains(&n) || truce(n);
+    // Whoever I have just asked to kneel gets the season to answer.
+    let asked = |n: NobleId| v.offers.iter().any(|o| o.from == v.me && o.to == n && o.season == v.season && o.want.contains(&Term::Fealty));
+    let friendly = |n: NobleId| {
+        n == v.me || liege == Some(n) || v.noble(n).liege == Some(v.me) || new_vassals.contains(&n) || truce(n) || asked(n)
+    };
     let hostile = |p: ProvinceId| !selling.contains(&p) && v.province(p).owner.is_none_or(|o| !friendly(o));
 
     let mine: Vec<ProvinceId> = v.mine().map(|p| p.id).filter(|p| !selling.contains(p)).collect();

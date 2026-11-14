@@ -151,7 +151,13 @@ impl Event {
                 let def = defender.map_or_else(|| "local levies".into(), who);
                 // Columns from several provinces fight as one side.
                 let mut merged: Vec<Contribution> = vec![];
+                let mut garrison = *garrison;
                 for c in marched {
+                    // The holder's own reinforcements join the garrison.
+                    if Some(c.noble) == *defender && c.on_behalf == c.noble {
+                        garrison += c.count;
+                        continue;
+                    }
                     match merged.iter_mut().find(|m| m.noble == c.noble && m.on_behalf == c.on_behalf) {
                         Some(m) => m.count += c.count,
                         None => merged.push(c.clone()),
@@ -170,7 +176,7 @@ impl Event {
                     Outcome::Taken(w) => format!("{} took it.", who(*w)),
                     Outcome::Standoff => "Neither side prevailed.".into(),
                 };
-                let def = if *garrison == 0 { format!("{def}, unguarded") } else { format!("{def} with {garrison}") };
+                let def = if garrison == 0 { format!("{def}, unguarded") } else { format!("{def} with {garrison}") };
                 format!("Battle at {} ({def}; {}). {end}", at(*p), sides.join("; "))
             }
             EventKind::Clash { between: (a, b), marched, winner } => {
