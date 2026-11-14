@@ -76,7 +76,8 @@ pub fn order_text(v: &View, o: &Order) -> String {
 pub fn draw(f: &mut Frame, play: &mut Play) {
     let area = f.area();
     let [main, status] = Layout::vertical([Constraint::Min(5), Constraint::Length(2)]).areas(area);
-    let side_w = SIDEBAR.min(main.width / 2);
+    // Narrow screens give the map the room: names need it more than the sidebar.
+    let side_w = (main.width * 2 / 5).clamp(30, SIDEBAR).min(main.width / 2);
     let [map_area, side] = Layout::horizontal([Constraint::Min(10), Constraint::Length(side_w)]).areas(main);
     play.sidebar = side;
 
@@ -258,7 +259,6 @@ fn short_season(s: u32) -> String {
 
 fn nobles_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
     let v = play.court.view();
-    let total = v.provinces.len() as u32;
     let mut lines: Vec<Line> = vec![];
     for (i, n) in v.nobles.iter().enumerate() {
         let mut head = vec![
@@ -272,7 +272,11 @@ fn nobles_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
         if !n.alive {
             head.push(Span::styled(" (fallen)", DIM));
         }
-        let mut detail = format!("   power {}/{total} · prestige {} · {} held", n.power, n.prestige, n.provinces);
+        let mut detail = if n.power == n.provinces {
+            format!("   power {} · prestige {}", n.power, n.prestige)
+        } else {
+            format!("   power {} ({} own) · prestige {}", n.power, n.provinces, n.prestige)
+        };
         if let Some(l) = n.liege {
             detail.push_str(&format!(" · sworn to {}", v.noble(l).name));
         }
@@ -289,20 +293,56 @@ fn nobles_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
         }
     }
     lines.push(Line::raw(""));
+    lines.extend(crown_lines(v));
+    (Text::from(lines), (sel as u16 * 2).saturating_sub(16))
+}
+
+/// What the crown of my people still needs, each condition ticked off.
+fn crown_lines(v: &View) -> Vec<Line<'static>> {
     let me = v.noble(v.me);
     let r = &v.rules;
-    lines.push(Line::styled("The crown of your people needs:", DIM));
-    lines.push(Line::styled(
-        format!(
-            " no liege, your seat, power {}+, prestige {}+,",
-            (r.king_share_pct * total).div_ceil(100),
-            r.king_prestige
-        ),
-        DIM,
-    ));
-    lines.push(Line::styled(format!(" and every {} noble sworn under you.", me.faction.name()), DIM));
+    let total = v.provinces.len() as u32;
+    let need_power = (r.king_share_pct * total).div_ceil(100);
+    let seat = v.provinces.iter().find(|p| p.kind == crate::map::Kind::Seat(me.faction));
+    let unsworn: Vec<&str> = v
+        .nobles
+        .iter()
+        .filter(|n| n.alive && n.id != v.me && n.faction == me.faction && !v.is_above(v.me, n.id))
+        .map(|n| n.name.as_str())
+        .collect();
+    let mut lines = vec![Line::styled(format!("To be crowned King of the {}:", me.faction.name()), DIM)];
+    let mut row = |done: bool, text: String| {
+        let mark = if done { Span::styled(" ✓ ", Style::new().fg(Color::Indexed(46))) } else { Span::styled(" · ", DIM) };
+        lines.push(Line::from(vec![mark, Span::styled(text, if done { DIM } else { Style::new() })]));
+    };
+    row(
+        me.liege.is_none(),
+        match me.liege {
+            None => "answer to no liege".into(),
+            Some(l) => format!("answer to no liege (you serve {})", v.noble(l).name),
+        },
+    );
+    if let Some(s) = seat {
+        let text = match s.owner {
+            Some(o) if o == v.me => format!("hold {}", s.name),
+            Some(o) => format!("hold {} ({} has it)", s.name, v.noble(o).name),
+            None => format!("hold {} (unclaimed)", s.name),
+        };
+        row(s.owner == Some(v.me), text);
+    }
+    row(me.power >= need_power, format!("power {need_power} of {total} (you {})", me.power));
+    row(me.prestige >= r.king_prestige, format!("prestige {} (you {})", r.king_prestige, me.prestige));
+    let one = me.faction.one();
+    row(
+        unsworn.is_empty(),
+        if unsworn.is_empty() {
+            format!("every other {one} sworn to you")
+        } else {
+            format!("{} sworn to you (not {})", me.faction.name(), unsworn.join(", "))
+        },
+    );
     lines.push(Line::styled(format!("You: {}", me.faction.blurb()), DIM));
-    (Text::from(lines), (sel as u16 * 2).saturating_sub(16))
+    lines
 }
 
 fn chronicle_panel(play: &Play, sel: usize, height: u16) -> (Text<'static>, u16) {
@@ -336,10 +376,20 @@ fn draw_status(f: &mut Frame, area: Rect, play: &Play) {
         Span::styled(format!(" {} · ", me.title.name()), DIM),
         Span::raw(format!("{} gold", v.gold.saturating_sub(spent))),
         Span::styled(if spent > 0 { format!(" ({spent} committed)") } else { String::new() }, DIM),
-        Span::raw(format!(" · power {} · prestige {} · {} orders", me.power, me.prestige, play.draft.len())),
+        Span::raw(format!(
+            " · power {} · prestige {} · {} order{}",
+            me.power,
+            me.prestige,
+            play.draft.len(),
+            if play.draft.len() == 1 { "" } else { "s" }
+        )),
         Span::styled(if v.submitted { " · sent" } else { "" }, KEY),
     ]);
     let mut top = top;
+    let fresh = v.letters.iter().filter(|l| l.season == v.season && l.from != v.me).count();
+    if fresh > 0 {
+        top.push_span(Span::styled(format!(" · {fresh} new letter{} (3)", if fresh == 1 { "" } else { "s" }), KEY));
+    }
     let others: Vec<String> = v.waiting.iter().filter(|&&n| n != v.me).map(|&n| v.noble(n).name.clone()).collect();
     if v.submitted && !others.is_empty() {
         top.push_span(Span::styled(format!(" · waiting for {}", others.join(", ")), DIM));
@@ -348,6 +398,16 @@ fn draw_status(f: &mut Frame, area: Rect, play: &Play) {
         let left = d.saturating_duration_since(std::time::Instant::now()).as_secs();
         let style = if left <= 30 && !v.submitted { Style::new().fg(Color::Indexed(203)).bold() } else { DIM };
         top.push_span(Span::styled(format!(" · {}:{:02} left", left / 60, left % 60), style));
+    }
+    if !me.alive && v.winner.is_none() {
+        top = Line::from(vec![
+            name_span(v, v.me),
+            Span::styled(" has fallen. ", DIM),
+            key("e"),
+            Span::raw(" watch the next season  "),
+            key("q"),
+            Span::raw(" leave"),
+        ]);
     }
     let bottom = Line::from(vec![Span::styled(play.status.clone(), DIM)]);
     f.render_widget(Paragraph::new(vec![top, bottom]), area);
@@ -394,7 +454,7 @@ fn draw_popup(f: &mut Frame, map_area: Rect, play: &Play) {
                 (None, Some(o)) => vec![Span::styled("to attack ", Style::new().fg(Color::Indexed(203))), name_span(v, o)],
                 (None, None) => vec![Span::raw("to take it from the local levies")],
             };
-            let seen = to.troops.map_or_else(|| "unknown troops".into(), |t| format!("{t} troops"));
+            let seen = to.troops.map_or_else(|| "unknown troops".into(), crate::chronicle::troops);
             let text = Text::from(vec![
                 Line::from(vec![
                     Span::raw(format!("From {} to ", v.province(*from).name)),
@@ -462,8 +522,13 @@ fn draw_popup(f: &mut Frame, map_area: Rect, play: &Play) {
                 lines.push(Line::styled(format!("{fresh} new letter{} waiting (tab 3).", if fresh == 1 { "" } else { "s" }), KEY));
             }
             lines.push(Line::raw(""));
-            lines.push(Line::styled("Any key to continue.", DIM));
-            let h = (lines.len() as u16 + 2).clamp(6, 26);
+            // Long entries wrap: count the rows they take, not the entries.
+            let w = full.width.min(80).saturating_sub(2).max(1) as usize;
+            let rows: usize = lines.iter().map(|l| l.width().max(1).div_ceil(w)).sum::<usize>() + 1;
+            let room = full.height.min(26).saturating_sub(2) as usize;
+            let more = if rows > room { "  (↑↓ for the rest)" } else { "" };
+            lines.push(Line::styled(format!("Any key to continue.{more}"), DIM));
+            let h = (rows as u16 + 2).clamp(6, 26);
             boxed(f, centered(full, 80, h), &format!("{} is over", season_name(*season)), Text::from(lines), *scroll);
         }
         Popup::ConfirmEnd => {
@@ -514,7 +579,19 @@ fn draw_compose(f: &mut Frame, full: Rect, play: &Play, c: &super::play::Compose
         to.push(Span::raw(" "));
     }
     lines.push(Line::from(to));
-    lines.push(Line::raw(""));
+    if field == Field::To {
+        lines.push(Line::from(vec![
+            Span::raw("    "),
+            key("←→"),
+            Span::raw(" choose "),
+            key("Space"),
+            Span::raw(" add/remove "),
+            key("a"),
+            Span::raw(" everyone"),
+        ]));
+    } else {
+        lines.push(Line::raw(""));
+    }
     lines.push(Line::from(label(Field::Body, "Letter:")));
     let mut body: Vec<Line> = c.body.split('\n').map(|s| Line::raw(format!("    {s}"))).collect();
     if field == Field::Body {

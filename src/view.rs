@@ -137,6 +137,19 @@ impl View {
         n == self.me || self.noble(self.me).liege == Some(n) || self.noble(n).liege == Some(self.me)
     }
 
+    /// Whether `a` stands above `b` somewhere up `b`'s chain of oaths.
+    pub fn is_above(&self, a: NobleId, b: NobleId) -> bool {
+        let mut cur = self.noble(b).liege;
+        for _ in 0..self.nobles.len() {
+            match cur {
+                Some(l) if l == a => return true,
+                Some(l) => cur = self.noble(l).liege,
+                None => return false,
+            }
+        }
+        false
+    }
+
     pub fn mine(&self) -> impl Iterator<Item = &ProvinceView> {
         self.provinces.iter().filter(move |p| p.owner == Some(self.me))
     }

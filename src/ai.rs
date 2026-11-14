@@ -77,6 +77,41 @@ fn write_letters(v: &View, mine: &[ProvinceId], paid: &BTreeMap<NobleId, u32>, g
         })
         .collect();
 
+    // First word to a player whose lands have come to touch mine: the
+    // strong ask a year's tribute for peace, the rest say they want none.
+    let written = |n: NobleId| v.letters.iter().any(|l| (l.from == v.me && l.to.contains(&n)) || (l.from == n && l.to.contains(&v.me)));
+    if let Some(&n) = neighbours.iter().find(|&&n| !v.noble(n).ai && !written(n) && !offered_to(n)) {
+        let them = v.noble(n);
+        let at = mine
+            .iter()
+            .find(|&&p| v.province(p).neighbours.iter().any(|&q| v.province(q).owner == Some(n)))
+            .map_or_else(String::new, |&p| format!(" at {}", v.province(p).name));
+        let (body, offer) = if me.power >= them.power * 2 && me.liege.is_none() {
+            (
+                format!(
+                    "{}, our lands meet now{at}. Send me {TRUCE_PRICE} gold and my men will find other work this year. Keep your purse shut and they may come for it instead.",
+                    them.name
+                ),
+                Some((vec![], vec![Term::Gold(TRUCE_PRICE)])),
+            )
+        } else if them.power >= me.power * 2 {
+            (
+                format!("{}, our lands meet now{at}. I am a small lord and want no quarrel with you. Look elsewhere, and so shall I.", them.name),
+                None,
+            )
+        } else {
+            (
+                format!(
+                    "{}, our lands meet now{at}. Keep your border manned and we shall get on well enough; an empty hold tempts any lord. {TRUCE_PRICE} gold would buy my peace for a year.",
+                    them.name
+                ),
+                None,
+            )
+        };
+        turn.letters.push(Draft { to: vec![n], body, offer });
+        return;
+    }
+
     // Plead with whoever took land from me, if I cannot hope to win it back.
     if let Some(&foe) = hurt_by.iter().find(|&&f| v.noble(f).power >= me.power * 2 && !offered_to(f) && me.liege != Some(f)) {
         let price = (gold / 2).clamp(0, 12);
@@ -104,7 +139,7 @@ fn write_letters(v: &View, mine: &[ProvinceId], paid: &BTreeMap<NobleId, u32>, g
         if let Some(&n) = weak.first() {
             let sweetener = if gold >= 12 { 6 } else { 0 };
             let give = if sweetener > 0 { vec![Term::Gold(sweetener)] } else { vec![] };
-            let kin = if v.noble(n).faction == me.faction { format!(" We are both {}; ", me.faction.name()) } else { " ".into() };
+            let kin = if v.noble(n).faction == me.faction { format!(" we are both {}; ", me.faction.name()) } else { " ".into() };
             turn.letters.push(Draft {
                 to: vec![n],
                 body: format!("{},{}kneel to me and keep your lands. Refuse, and I will take them.", v.noble(n).name, kin),
@@ -145,6 +180,8 @@ pub fn plan(v: &View) -> AiTurn {
 
     // Deals. Anyone whose oath I take this season is a friend already.
     let mut new_vassals: Vec<NobleId> = vec![];
+    // Whoever I kneel to this season is my liege before anyone marches.
+    let mut new_liege: Option<NobleId> = None;
     // Land I am handing over this season: neither mine to use nor to take.
     let mut selling: Vec<ProvinceId> = vec![];
     for o in v.offers.iter().filter(|o| o.to == v.me) {
@@ -176,6 +213,9 @@ pub fn plan(v: &View) -> AiTurn {
             if o.give.contains(&Term::Fealty) {
                 new_vassals.push(o.from);
             }
+            if o.want.contains(&Term::Fealty) && me.liege.is_none() && new_liege.is_none() {
+                new_liege = Some(o.from);
+            }
             selling.extend(o.want.iter().filter_map(|t| if let Term::Province(p) = t { Some(*p) } else { None }));
         }
         if !v.noble(o.from).ai {
@@ -196,7 +236,7 @@ pub fn plan(v: &View) -> AiTurn {
             turn.orders.push(Order::Renounce);
         }
     }
-    let liege = if turn.orders.contains(&Order::Renounce) { None } else { me.liege };
+    let liege = if turn.orders.contains(&Order::Renounce) { None } else { me.liege.or(new_liege) };
     let paid = paid_me(v);
     let truce = |n: NobleId| paid.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE;
     let friendly = |n: NobleId| n == v.me || liege == Some(n) || v.noble(n).liege == Some(v.me) || new_vassals.contains(&n) || truce(n);

@@ -219,8 +219,12 @@ impl Game {
         if self.winner.is_some() {
             return Err("the game is over".into());
         }
-        if !self.noble(n).is_some_and(|x| x.alive) {
-            return Err("that noble is out of the game".into());
+        match self.noble(n) {
+            None => return Err("no such noble".into()),
+            // A fallen noble watches the rest of the game: ending a season
+            // is allowed, the orders are not.
+            Some(x) if !x.alive => return Ok(()),
+            Some(_) => {}
         }
         self.orders[n as usize] = Some(orders);
         Ok(())

@@ -27,7 +27,7 @@ fn main() -> io::Result<()> {
              --join ID    join a host by its id (works across the internet)\n\
              --simulate   computer nobles play a whole game; prints the chronicle\n\
              --all        with --simulate, print private events too",
-            sworn::court::data_dir().display()
+            sworn::court::state_dir().display()
         );
         return Ok(());
     }

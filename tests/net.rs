@@ -223,7 +223,7 @@ fn hosting_and_joining_through_the_screens() {
     use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
     use ratatui::Terminal;
     let dir = std::env::temp_dir().join(format!("sworn-test-{}-screens", std::process::id()));
-    std::env::set_var("XDG_DATA_HOME", &dir);
+    std::env::set_var("XDG_STATE_HOME", &dir);
     let press = |ui: &mut Ui, c: KeyCode| ui.event(Event::Key(KeyEvent::new(c, KeyModifiers::NONE)));
     let text = |t: &Terminal<TestBackend>| {
         let b = t.backend().buffer();

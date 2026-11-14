@@ -24,6 +24,16 @@ impl Faction {
         }
     }
 
+    /// One of the people: "every other Saxon".
+    pub fn one(self) -> &'static str {
+        match self {
+            Faction::Saxons => "Saxon",
+            Faction::Danes => "Dane",
+            Faction::Bretons => "Breton",
+            Faction::Moravians => "Moravian",
+        }
+    }
+
     pub fn blurb(self) -> &'static str {
         match self {
             Faction::Saxons => "The fyrd: troops cost a third less to keep.",

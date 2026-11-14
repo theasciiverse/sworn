@@ -19,7 +19,7 @@ marches (`b` to fight on someone else's behalf), `w` writes a letter with an opt
 `e` ends the season.
 
 Up to eight nobles; empty seats go to computer nobles. Games save every season to
-`~/.local/share/sworn/`. If a player drops, the computer holds their seat until they rejoin
+the state folder (`$XDG_STATE_HOME/sworn`, else `~/.local/state/sworn/`). If a player drops, the computer holds their seat until they rejoin
 under the same name. If the host drops, they resume from the title menu and everyone rejoins.
 The host can set a season timer in the lobby (`t`); when it runs out, anyone who has not sent
 orders holds where they stand.

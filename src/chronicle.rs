@@ -101,6 +101,15 @@ impl Names for View {
     }
 }
 
+/// "1 troop", "5 troops".
+pub fn troops(n: u32) -> String {
+    if n == 1 {
+        "1 troop".into()
+    } else {
+        format!("{n} troops")
+    }
+}
+
 impl Event {
     pub fn describe(&self, g: &impl Names) -> String {
         let who = |n: NobleId| g.noble_name(n);
@@ -131,17 +140,25 @@ impl Event {
             }
             EventKind::Renounced { vassal, liege } => format!("{} renounced their oath to {}.", who(*vassal), who(*liege)),
             EventKind::Released { liege, vassal } => format!("{} released {} from their oath.", who(*liege), who(*vassal)),
-            EventKind::Raised { noble, at: p, count } => format!("{} raised {count} troops at {}.", who(*noble), at(*p)),
+            EventKind::Raised { noble, at: p, count } => format!("{} raised {} at {}.", who(*noble), troops(*count), at(*p)),
             EventKind::Moved { noble, from, to, count } => {
-                format!("{} moved {count} troops from {} to {}.", who(*noble), at(*from), at(*to))
+                format!("{} moved {} from {} to {}.", who(*noble), troops(*count), at(*from), at(*to))
             }
             EventKind::StoodGuard { noble, at: p, count } => {
-                format!("{} sent {count} troops to guard {}; no one came.", who(*noble), at(*p))
+                format!("{} sent {} to guard {}; no one came.", who(*noble), troops(*count), at(*p))
             }
             EventKind::Battle { at: p, defender, garrison, marched, outcome } => {
                 let def = defender.map_or_else(|| "local levies".into(), who);
-                let mut sides: Vec<String> = vec![];
+                // Columns from several provinces fight as one side.
+                let mut merged: Vec<Contribution> = vec![];
                 for c in marched {
+                    match merged.iter_mut().find(|m| m.noble == c.noble && m.on_behalf == c.on_behalf) {
+                        Some(m) => m.count += c.count,
+                        None => merged.push(c.clone()),
+                    }
+                }
+                let mut sides: Vec<String> = vec![];
+                for c in &merged {
                     if c.noble == c.on_behalf {
                         sides.push(format!("{} with {}", who(c.noble), c.count));
                     } else {
@@ -149,11 +166,12 @@ impl Event {
                     }
                 }
                 let end = match outcome {
-                    Outcome::Held => format!("{def} held."),
+                    Outcome::Held => if defender.is_some() { format!("{def} held.") } else { "The local levies held.".into() },
                     Outcome::Taken(w) => format!("{} took it.", who(*w)),
                     Outcome::Standoff => "Neither side prevailed.".into(),
                 };
-                format!("Battle at {} ({def} with {garrison}; {}). {end}", at(*p), sides.join("; "))
+                let def = if *garrison == 0 { format!("{def}, unguarded") } else { format!("{def} with {garrison}") };
+                format!("Battle at {} ({def}; {}). {end}", at(*p), sides.join("; "))
             }
             EventKind::Clash { between: (a, b), marched, winner } => {
                 let sides: Vec<String> = marched

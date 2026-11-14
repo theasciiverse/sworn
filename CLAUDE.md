@@ -45,7 +45,7 @@ Called Fealty until 2026-11-08. That name was taken several times over: a 2024 S
 game for 2-6 players about vassals and betrayal (app 1770120), Asmadi's board game (2011), an
 itch.io RTS, and Might & Fealty. Sworn was free as far as a web search showed. The rename
 changed the wire names (ALPN `sworn/1`, LAN magic `SWORN-LAN-1`), so Fealty builds cannot
-play Sworn ones. Saves live in `~/.local/share/sworn/` (`*.sworn`). License MIT, as Panzer (whose
+play Sworn ones. Saves live in `$XDG_STATE_HOME/sworn/` (`*.sworn`; moved there from `~/.local/share` on 2026-11-14). License MIT, as Panzer (whose
 `net.rs`/`lan.rs` it shares).
 
 ## Decisions (2026-11-06/07)
@@ -55,7 +55,7 @@ play Sworn ones. Saves live in `~/.local/share/sworn/` (`*.sworn`). License MIT,
   marching in winter (`Rules::winter_marches`), so winter is for letters.
 - **Hosting:** the host holds the only `Game` and sends each player their fogged `View` and
   nothing more (`netcourt.rs`). The rules core is pure and deterministic (own SplitMix64 RNG,
-  no clock) and the host saves every season (`~/.local/share/sworn/hosted.sworn`). A player
+  no clock) and the host saves every season (`$XDG_STATE_HOME/sworn/hosted.sworn`). A player
   who drops is played by the computer (a "steward") until they rejoin under the same name; a
   host who drops picks "Resume the game you host" and players rejoin by name.
 - **Players:** 2 to 8 nobles; computer nobles (`ai.rs`) fill empty seats and plan from the same

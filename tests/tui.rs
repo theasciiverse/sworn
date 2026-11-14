@@ -8,6 +8,9 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseBut
 use ratatui::Terminal;
 
 fn ui(seed: u64, nobles: usize) -> Ui {
+    // Random keys can reach the title menu and start a saved game: keep any
+    // save in the temp folder, never in a player's state folder.
+    std::env::set_var("XDG_STATE_HOME", std::env::temp_dir().join(format!("sworn-tui-{}", std::process::id())));
     let g = tui::new_local_game("David", Faction::ALL[seed as usize % 4], nobles, seed).unwrap();
     Ui::with_court(Box::new(LocalCourt::new(g, 0, None)))
 }

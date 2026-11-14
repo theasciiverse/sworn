@@ -123,24 +123,29 @@ impl Court for LocalCourt {
     }
 }
 
-/// Where saves live: `$XDG_DATA_HOME/sworn`, else `~/.local/share/sworn`.
-pub fn data_dir() -> PathBuf {
-    data_home().join("sworn")
+/// Where saves live: `$XDG_STATE_HOME/sworn`, else `~/.local/state/sworn`
+/// (`%LOCALAPPDATA%\sworn` on Windows). Unit tests get a folder of their own
+/// in the temp directory, never a player's.
+pub fn state_dir() -> PathBuf {
+    if cfg!(test) {
+        return std::env::temp_dir().join(format!("sworn-unit-{}", std::process::id()));
+    }
+    state_home().join("sworn")
 }
 
-fn data_home() -> PathBuf {
-    std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .filter(|p| p.is_absolute())
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+fn state_home() -> PathBuf {
+    let var = |k: &str| std::env::var_os(k).map(PathBuf::from).filter(|p| p.is_absolute());
+    var("XDG_STATE_HOME")
+        .or_else(|| if cfg!(windows) { var("LOCALAPPDATA") } else { None })
+        .or_else(|| var("HOME").map(|h| h.join(".local").join("state")))
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
 pub fn autosave_path() -> PathBuf {
-    data_dir().join("autosave.sworn")
+    state_dir().join("autosave.sworn")
 }
 
 /// The save of the game this machine hosts for others.
 pub fn hosted_path() -> PathBuf {
-    data_dir().join("hosted.sworn")
+    state_dir().join("hosted.sworn")
 }

@@ -191,7 +191,8 @@ fn losing_every_province_ends_a_noble_and_frees_their_vassals() {
     g.resolve();
     assert!(!g.nobles[1].alive);
     assert_eq!(g.nobles[2].liege, None);
-    assert!(g.submit(1, vec![]).is_err());
+    g.submit(1, vec![march(1, 0, 1)]).unwrap(); // a fallen noble may let the seasons turn
+    assert!(g.orders[1].is_none(), "but gives no orders");
 }
 
 #[test]
@@ -401,4 +402,42 @@ fn your_own_columns_swap_places_freely() {
     assert_eq!(clash(&g, first), None);
     assert_eq!(g.map.provinces[0].troops, 4);
     assert_eq!(g.map.provinces[1].troops, 10);
+}
+
+#[test]
+fn a_computer_noble_that_kneels_does_not_march_on_its_new_liege() {
+    let mut g = game();
+    g.nobles[1].ai = true;
+    g.nobles[0].gold = 20;
+    own(&mut g, 0, 0, 1); // Ann's A is nearly empty, Bo's B strong
+    own(&mut g, 1, 1, 20);
+    for p in [2, 3, 5] {
+        own(&mut g, p, 0, 3); // Ann holds twice Bo's land: kneeling is cheap for kin
+    }
+    g.send_letter(0, &[1], "Kneel, cousin.", Some((vec![Term::Gold(6)], vec![Term::Fealty]))).unwrap();
+    g.ai_orders();
+    g.submit(0, vec![]).unwrap();
+    g.submit(2, vec![]).unwrap();
+    let first = g.resolve();
+    assert_eq!(g.nobles[1].liege, Some(0), "Bo swore");
+    assert!(
+        !g.chronicle[first..].iter().any(|e| matches!(e.kind, EventKind::OathBroken { .. } | EventKind::Battle { .. })),
+        "and kept the oath the season it was sworn"
+    );
+}
+
+#[test]
+fn a_computer_noble_writes_once_when_its_lands_meet_a_players() {
+    let mut g = game();
+    g.nobles[1].ai = true;
+    g.ai_write();
+    let first: Vec<_> = g.letters.iter().filter(|l| l.from == 1 && l.to == vec![0]).collect();
+    assert_eq!(first.len(), 1, "Bo greets Ann: {:?}", g.letters);
+    assert!(first[0].body.contains("our lands meet"));
+    g.submit(0, vec![]).unwrap();
+    g.submit(2, vec![]).unwrap();
+    g.ai_orders();
+    g.resolve();
+    g.ai_write();
+    assert_eq!(g.letters.iter().filter(|l| l.from == 1 && l.to == vec![0] && l.body.contains("our lands meet")).count(), 1, "and only once");
 }
