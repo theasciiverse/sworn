@@ -415,7 +415,10 @@ impl HostCourt {
             return;
         };
         if self.clients.values().any(|&x| x == n) {
-            self.net.send(Cmd::SendTo(c, Msg::Reject { reason: format!("{} is already seated", self.name(n)) }));
+            // A player whose game just closed is still seated until the
+            // host notices the link is gone, a few seconds later.
+            let reason = format!("{} is already seated; if that was you, the host will notice you left in a few seconds: try again", self.name(n));
+            self.net.send(Cmd::SendTo(c, Msg::Reject { reason }));
             self.net.send(Cmd::Kick(c));
             return;
         }
@@ -506,6 +509,10 @@ pub struct JoinLobby {
     /// The host's season timer, in seconds (0: none).
     pub timer: u32,
     pub faction: Faction,
+    /// The name asked for, to find my seat in the host's list.
+    name: String,
+    /// Whether I have chosen a people; until then, show the one the host gave me.
+    picked: bool,
     seated: Option<NobleId>,
     deadline: Option<Instant>,
     view: Option<View>,
@@ -523,6 +530,8 @@ impl JoinLobby {
             resumed: false,
             timer: 0,
             faction: Faction::Saxons,
+            name: name.trim().to_string(),
+            picked: false,
             seated: None,
             deadline: None,
             view: None,
@@ -533,6 +542,7 @@ impl JoinLobby {
 
     pub fn pick(&mut self, f: Faction) {
         self.faction = f;
+        self.picked = true;
         self.net.send(Cmd::Broadcast(Msg::Pick(f)));
     }
 
@@ -549,6 +559,11 @@ impl JoinLobby {
                 }
                 Evt::HostMsg(Msg::Reject { reason }) => self.failed = Some(reason),
                 Evt::HostMsg(Msg::Lobby { seats, size, resumed, timer }) => {
+                    if !self.picked {
+                        if let Some(mine) = seats.iter().find(|s| !s.host && !s.empty && s.name.eq_ignore_ascii_case(&self.name)) {
+                            self.faction = mine.faction;
+                        }
+                    }
                     self.seats = seats;
                     self.size = size;
                     self.resumed = resumed;
