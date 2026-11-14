@@ -441,3 +441,20 @@ fn a_computer_noble_writes_once_when_its_lands_meet_a_players() {
     g.ai_write();
     assert_eq!(g.letters.iter().filter(|l| l.from == 1 && l.to == vec![0] && l.body.contains("our lands meet")).count(), 1, "and only once");
 }
+
+#[test]
+fn a_computer_vassal_renounces_when_only_its_oath_bars_the_crown() {
+    let mut g = game();
+    g.nobles[1].ai = true;
+    for p in [2, 3, 5] {
+        own(&mut g, p, 1, 4); // Bo holds C, D and the Saxon seat G
+    }
+    g.nobles[1].liege = Some(2); // Bo serves Cy, a Moravian
+    g.nobles[0].liege = Some(1); // and Ann, the other Saxon, serves Bo
+    g.nobles[1].prestige = 30;
+    let turn = sworn::ai::plan(&g.view(1));
+    assert!(turn.orders.contains(&Order::Renounce), "the crown is worth an oath");
+    g.nobles[1].prestige = 22; // renouncing would cost the prestige the crown needs
+    let turn = sworn::ai::plan(&g.view(1));
+    assert!(!turn.orders.contains(&Order::Renounce));
+}

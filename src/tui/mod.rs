@@ -128,7 +128,7 @@ impl Ui {
         match (e, l) {
             (LobbyEvent::Leave, _) => {}
             (LobbyEvent::Start, Lobby::Host(h)) => match h.start(seed_from_clock()) {
-                Ok(court) => self.screen = Screen::Play(Play::new(Box::new(court))),
+                Ok(court) => self.screen = Screen::Play(Play::first(Box::new(court))),
                 Err(e) => {
                     let mut t = title();
                     t.note = e;
@@ -136,7 +136,7 @@ impl Ui {
                 }
             },
             (LobbyEvent::Ready, Lobby::Join(j)) => match j.into_court() {
-                Some(court) => self.screen = Screen::Play(Play::new(Box::new(court))),
+                Some(court) => self.screen = Screen::Play(Play::first(Box::new(court))),
                 None => self.screen = Screen::Title(title()),
             },
             (_, l) => self.screen = Screen::Lobby(l),
@@ -168,7 +168,7 @@ impl Ui {
                                 Ok(g) => {
                                     log::info!("new game: {count} nobles, {} provinces", g.map.provinces.len());
                                     let court = LocalCourt::new(g, 0, Some(autosave_path()));
-                                    self.screen = Screen::Play(Play::new(Box::new(court)));
+                                    self.screen = Screen::Play(Play::first(Box::new(court)));
                                 }
                                 Err(e) => {
                                     let mut t = title();

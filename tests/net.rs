@@ -294,6 +294,9 @@ fn hosting_and_joining_through_the_screens() {
     t.draw(|f| guest.draw(f)).unwrap();
     let s = text(&t);
     assert!(s.contains("The Realm") && s.contains("Guest"), "{s}");
+    assert!(s.contains("your first season"), "a new game opens with a word on what to do: {s}");
+    press(&mut guest, KeyCode::Esc);
+    press(&mut host, KeyCode::Esc);
     // The guest ends the season; the host still owes orders.
     press(&mut guest, KeyCode::Char('e'));
     press(&mut guest, KeyCode::Char('y'));

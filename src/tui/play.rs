@@ -100,6 +100,8 @@ pub enum Popup {
     ConfirmEnd,
     ConfirmQuit,
     Help,
+    /// What to do in the first season of a new game.
+    FirstSeason,
     Over { metric: usize },
 }
 
@@ -126,6 +128,15 @@ pub const FLASH_FOR: Duration = Duration::from_millis(3500);
 const FLASH_BLINK: u128 = 300;
 
 impl Play {
+    /// A new game's first screen, with a word on what to do.
+    pub fn first(court: Box<dyn Court>) -> Play {
+        let mut p = Play::new(court);
+        if p.view().season == 0 && p.popup.is_none() {
+            p.popup = Some(Popup::FirstSeason);
+        }
+        p
+    }
+
     pub fn new(court: Box<dyn Court>) -> Play {
         let v = court.view();
         let sel = v.mine().next().map_or(0, |p| p.id);
@@ -567,6 +578,7 @@ impl Play {
                 None
             }
             Popup::Help => None,
+            Popup::FirstSeason => (k.code == KeyCode::Char('?')).then_some(Popup::Help),
             Popup::Over { metric } => match k.code {
                 KeyCode::Char('q') | KeyCode::Enter => {
                     self.leave = true;

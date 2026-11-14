@@ -554,6 +554,11 @@ fn draw_popup(f: &mut Frame, map_area: Rect, play: &Play) {
             boxed(f, centered(full, 56, 4), "Leave", text, 0);
         }
         Popup::Help => boxed(f, centered(full, 72, 26), "How to play", help_text(), 0),
+        Popup::FirstSeason => {
+            let text = first_season_text(v);
+            let h = text.lines.len() as u16 + 2;
+            boxed(f, centered(full, 72, h), &format!("{}: your first season", season_name(v.season)), text, 0)
+        }
         Popup::Over { metric } => super::over::draw(f, full, v, *metric),
     }
 }
@@ -658,6 +663,26 @@ fn draw_compose(f: &mut Frame, full: Rect, play: &Play, c: &super::play::Compose
     lines.push(Line::from(vec![key("Tab"), Span::raw(" next field  "), key("Esc"), Span::raw(" discard")]));
     let r = centered(full, 78, lines.len() as u16 + 2);
     boxed(f, r, "Write a letter", Text::from(lines), 0);
+}
+
+fn first_season_text(v: &View) -> Text<'static> {
+    let me = v.noble(v.me);
+    let home = v.mine().next().map_or_else(String::new, |p| p.name.clone());
+    let seat = v.provinces.iter().find(|p| p.kind == crate::map::Kind::Seat(me.faction)).map_or_else(String::new, |p| p.name.clone());
+    let step = |k: &str, rest: &str| Line::from(vec![Span::raw("  "), key(k), Span::raw(format!("  {rest}"))]);
+    Text::from(vec![
+        Line::raw(format!("{}, you hold {home} and little else. To rule the {} you", me.name, me.faction.name())),
+        Line::raw(format!("must one day hold {seat} and have every other {} sworn to you.", me.faction.one())),
+        Line::raw(""),
+        step("r", "raise troops in your province; they cost gold to raise and keep"),
+        step("m", "march on an unclaimed neighbour with more men than its levies"),
+        step("e", "end the season: every noble's orders happen at once"),
+        Line::raw(""),
+        Line::styled("Letters (3) are how the nobles talk, and they may lie. Only an offer", DIM),
+        Line::styled("binds. The nobles tab (4) shows what the crown still needs.", DIM),
+        Line::raw(""),
+        Line::from(vec![key("?"), Span::raw(" every key  "), key("any key"), Span::raw(" begin")]),
+    ])
 }
 
 fn help_text() -> Text<'static> {

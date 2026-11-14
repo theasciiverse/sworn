@@ -30,12 +30,12 @@ behind some of these are in `CLAUDE.md`.
 
 ## 0.3.0: the court
 
-- [ ] Help that teaches: a first-season walkthrough of raise, march and
-  the end of the season, shown once
+- [x] Help that teaches: a new game opens with a word on raising,
+  marching and ending the season, and where the crown's needs are shown
 - [ ] Liege and vassal duties: a liege can call a vassal to march, and the
   computer nobles answer (or quietly don't)
-- [ ] Computer nobles that sometimes betray: a vassal near the crown of its
-  own people renounces at the worst moment for its liege
+- [x] Computer nobles that betray when it pays: a vassal whose oath is all
+  that stands between it and its people's crown renounces
 - [ ] Map names that stay readable at 80x24
 
 ## 0.4.0: playing with people

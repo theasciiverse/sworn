@@ -232,7 +232,7 @@ pub fn plan(v: &View) -> AiTurn {
 
     // A liege who has fallen behind is no longer worth the tribute.
     if let Some(l) = me.liege {
-        if me.power > 2 * v.noble(l).power {
+        if me.power > 2 * v.noble(l).power || crown_but_for_oath(v) {
             turn.orders.push(Order::Renounce);
         }
     }
@@ -367,6 +367,17 @@ pub fn plan(v: &View) -> AiTurn {
         }
     }
     turn
+}
+
+/// Whether the oath I swore is all that stands between me and the crown of
+/// my people. Then the oath goes, whatever the liege thinks of it.
+fn crown_but_for_oath(v: &View) -> bool {
+    let me = v.noble(v.me);
+    let r = &v.rules;
+    let total = v.provinces.len() as u32;
+    let seat = v.provinces.iter().any(|p| p.kind == crate::map::Kind::Seat(me.faction) && p.owner == Some(v.me));
+    let kin_sworn = v.nobles.iter().filter(|n| n.alive && n.id != v.me && n.faction == me.faction).all(|n| v.is_above(v.me, n.id));
+    seat && kin_sworn && me.power * 100 >= r.king_share_pct * total && me.prestige - r.renounce_penalty >= r.king_prestige
 }
 
 /// Hops from each of my provinces to my nearest border, through my own land.
