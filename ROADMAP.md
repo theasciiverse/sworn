@@ -37,7 +37,8 @@ behind some of these are in `CLAUDE.md`.
   grown bigger than its liege does not answer
 - [x] Computer nobles that betray when it pays: a vassal whose oath is all
   that stands between it and its people's crown renounces
-- [ ] Map names that stay readable at 80x24
+- [x] Map names that stay readable at 80x24 (labels nudged a cell or two
+  apart, names cut keep their ending's first letter)
 
 ## 0.4.0: playing with people
 

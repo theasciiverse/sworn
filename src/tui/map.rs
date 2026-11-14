@@ -56,57 +56,166 @@ const FLASH_HELD: Color = Color::Indexed(231);
 const FLASH_ROAD: Color = Color::Indexed(203);
 
 /// Where each province's label sits in `area`, and how many name characters fit.
-pub fn layout(area: Rect, v: &View) -> (Vec<(u16, u16)>, usize) {
+fn scaled(area: Rect, v: &View) -> Vec<(u16, u16)> {
     let n = v.provinces.len().max(1);
     let cols = ((n as f64 * 1.6).sqrt().ceil() as u16).max(1);
     let name_len = (area.width / cols).saturating_sub(3).clamp(3, 10) as usize;
     let label_w = name_len as u16 + 2;
     let w = area.width.saturating_sub(label_w).max(1) as u32;
-    let h = area.height.saturating_sub(2).max(1) as u32;
+    let h = area.height.saturating_sub(1).max(1) as u32;
     // Stretch the realm to fill the panel.
     let (x0, x1) = v.provinces.iter().fold((u16::MAX, 0), |(a, b), p| (a.min(p.x), b.max(p.x)));
     let (y0, y1) = v.provinces.iter().fold((u16::MAX, 0), |(a, b), p| (a.min(p.y), b.max(p.y)));
     let (sx, sy) = ((x1.saturating_sub(x0)).max(1) as u32, (y1.saturating_sub(y0)).max(1) as u32);
-    let pos = v
-        .provinces
+    v.provinces
         .iter()
         .map(|p| {
             let x = (p.x - x0.min(p.x)) as u32 * w.saturating_sub(1) / sx;
             let y = (p.y - y0.min(p.y)) as u32 * h.saturating_sub(1) / sy;
             (area.x + x as u16, area.y + y as u16)
         })
-        .collect();
-    (pos, name_len)
+        .collect()
 }
+
+/// Cells kept for a province's troop count under its name.
+const TROOPS_W: u16 = 3;
+
+/// How many name characters fit at `at` before the next glyph or troop
+/// count to the right, or `None` if the glyph or troops would sit on
+/// another province's.
+fn room(area: Rect, at: (u16, u16), me: usize, pos: &[(u16, u16)]) -> Option<usize> {
+    let (x, y) = at;
+    let mut right = area.right().saturating_sub(1);
+    for (j, &(qx, qy)) in pos.iter().enumerate() {
+        if j == me {
+            continue;
+        }
+        // Fixed footprints: the glyph, and the troop count under the name.
+        let dx = qx as i32 - x as i32;
+        let w = TROOPS_W as i32;
+        let clash = (qy == y && dx.abs() < w)
+            || (qy + 1 == y && (-w..0).contains(&dx))
+            || (qy == y + 1 && (1..=w).contains(&dx));
+        if clash {
+            return None;
+        }
+        // What stops the name: a glyph on its row, or a troop count there.
+        if qy == y && qx > x {
+            right = right.min(qx.saturating_sub(1));
+        }
+        if qy + 1 == y && qx + 1 > x {
+            right = right.min(qx);
+        }
+    }
+    Some(right.saturating_sub(x + 1) as usize)
+}
+
+/// Each province's place and how much of its name shows: the scaled
+/// position, nudged a cell or two where that lets more names show whole.
+pub fn layout(area: Rect, v: &View) -> (Vec<(u16, u16)>, Vec<usize>) {
+    type Key = (Rect, Vec<(u16, u16, usize)>);
+    thread_local! {
+        static LAST: std::cell::RefCell<Option<(Key, (Vec<(u16, u16)>, Vec<usize>))>> = const { std::cell::RefCell::new(None) };
+    }
+    let key: Key = (area, v.provinces.iter().map(|p| (p.x, p.y, p.name.len())).collect());
+    if let Some(hit) = LAST.with_borrow(|l| l.as_ref().filter(|(k, _)| *k == key).map(|(_, out)| out.clone())) {
+        return hit;
+    }
+    let out = place(area, v);
+    LAST.with_borrow_mut(|l| *l = Some((key, out.clone())));
+    out
+}
+
+fn place(area: Rect, v: &View) -> (Vec<(u16, u16)>, Vec<usize>) {
+    let mut pos = scaled(area, v);
+    let lens: Vec<usize> = v.provinces.iter().map(|p| p.name.chars().count()).collect();
+    let (top, bottom) = (area.y, area.bottom().saturating_sub(2).max(area.y));
+    // The first four letters tell a name apart, so they count the most.
+    let worth = |pos: &[(u16, u16)], i: usize| -> i64 {
+        let Some(r) = room(area, pos[i], i, pos) else { return -1000 };
+        let s = r.min(lens[i]) as i64;
+        12 * s.min(4) + 3 * (s - 4).max(0) + if r >= lens[i] { 6 } else { 0 }
+    };
+    let home = pos.clone();
+    let mut moves: Vec<(i32, i32)> = vec![(0, 0)];
+    for dy in -2i32..=2 {
+        for dx in -3i32..=2 {
+            if (dx, dy) != (0, 0) && (dy.abs() < 2 || dx.abs() < 2) {
+                moves.push((dx, dy));
+            }
+        }
+    }
+    for _ in 0..4 {
+        let mut changed = false;
+        for i in 0..pos.len() {
+            let mut best = (i64::MIN, pos[i]);
+            for &(dx, dy) in &moves {
+                let dy = if dy.abs() == 2 && area.height < 12 { 0 } else { dy };
+                let (hx, hy) = home[i];
+                let x = hx as i32 + dx;
+                let y = hy as i32 + dy;
+                if x < area.x as i32 || x >= area.right() as i32 - 1 || y < top as i32 || y > bottom as i32 {
+                    continue;
+                }
+                pos[i] = (x as u16, y as u16);
+                // Score this label and those it can crowd from any of its places.
+                let (hx, hy) = (hx as i32, hy as i32);
+                let near = |j: usize| {
+                    let (jx, jy) = (pos[j].0 as i32, pos[j].1 as i32);
+                    (jy - hy).abs() <= 5 && jx >= hx - 20 && jx <= hx + 18
+                };
+                let mut score: i64 = (0..pos.len()).filter(|&j| near(j)).map(|j| worth(&pos, j)).sum();
+                score -= 2 * (dx.abs() + dy.abs()) as i64;
+                if score > best.0 {
+                    best = (score, pos[i]);
+                }
+            }
+            changed |= pos[i] != best.1;
+            pos[i] = best.1;
+        }
+        if !changed {
+            break;
+        }
+    }
+    let shown = (0..pos.len()).map(|i| room(area, pos[i], i, &pos).unwrap_or(0).min(lens[i])).collect();
+    (pos, shown)
+}
+
+/// A name cut to `len` characters, keeping the first letter of its ending
+/// ("Eskburg" in four is "Eskb", "Thornhithe" in five "Thorh") so that
+/// names sharing a beginning still differ.
+pub fn short_name(name: &str, len: usize) -> String {
+    let chars: Vec<char> = name.chars().collect();
+    if chars.len() <= len {
+        return name.to_string();
+    }
+    if len >= 2 {
+        if let Some(sfx) = SUFFIXES_FOR_SHORT.iter().find(|s| name.ends_with(*s) && name.len() > s.len()) {
+            let stem = chars.len() - sfx.chars().count();
+            if stem >= len {
+                let mut out: String = chars[..len - 1].iter().collect();
+                out.push(chars[stem]);
+                return out;
+            }
+        }
+    }
+    chars[..len].iter().collect()
+}
+
+const SUFFIXES_FOR_SHORT: &[&str] = crate::map::SUFFIXES;
 
 pub fn draw(buf: &mut Buffer, area: Rect, v: &View, marks: &MapMarks, hits: &mut Vec<(Rect, ProvinceId)>) {
     hits.clear();
     if area.width < 10 || area.height < 4 {
         return;
     }
-    let (pos, name_len) = layout(area, v);
-    // Each name takes what room it has before the next label to its right.
-    let lens: Vec<usize> = v
-        .provinces
-        .iter()
-        .map(|p| {
-            let (x, y) = pos[p.id as usize];
-            let room = pos
-                .iter()
-                .filter(|&&(qx, qy)| qx > x && (qy == y || qy + 1 == y))
-                .map(|&(qx, _)| (qx - x) as usize)
-                .min()
-                .unwrap_or((area.right() - x) as usize);
-            let room = room.min((area.right() - x) as usize).saturating_sub(2);
-            p.name.chars().count().min(room.max(name_len.min(3))).min(12)
-        })
-        .collect();
+    let (pos, lens) = layout(area, v);
     let mut taken: HashSet<(u16, u16)> = HashSet::new();
     for (i, &(x, y)) in pos.iter().enumerate() {
         for dx in 0..lens[i] as u16 + 1 {
             taken.insert((x + dx, y));
         }
-        for dx in 0..5 {
+        for dx in 0..TROOPS_W + 1 {
             taken.insert((x + dx, y + 1));
         }
     }
@@ -173,7 +282,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, v: &View, marks: &MapMarks, hits: &mut
             }
             _ => put(buf, x, y, glyph(p.kind), Style::new().fg(color), true),
         }
-        let name: String = p.name.chars().take(lens[p.id as usize]).collect();
+        let name = short_name(&p.name, lens[p.id as usize]);
         for (i, ch) in name.chars().enumerate() {
             put(buf, x + 1 + i as u16, y, ch, name_style, true);
         }
@@ -233,4 +342,43 @@ pub fn step(v: &View, from: ProvinceId, dx: i32, dy: i32) -> Option<ProvinceId> 
         })
         .min()
         .map(|(_, id)| id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Faction;
+
+    #[test]
+    fn short_names_keep_their_ending_letter() {
+        assert_eq!(short_name("Eskburg", 9), "Eskburg");
+        assert_eq!(short_name("Eskburg", 5), "Eskbu");
+        assert_eq!(short_name("Eskburg", 3), "Esb");
+        assert_eq!(short_name("Thornhithe", 5), "Thorh");
+        assert_eq!(short_name("Osby", 2), "Ob");
+        assert_eq!(short_name("Nowhere", 3), "Now");
+    }
+
+    /// Glyphs and troop counts never overlap, and at 80x24 nearly every
+    /// name shows whole and none drops below three letters.
+    #[test]
+    fn labels_fit_at_small_sizes() {
+        for nobles in [2, 4, 6, 8] {
+            for seed in 0..12 {
+                let g = crate::tui::new_local_game("David", Faction::Saxons, nobles, seed).unwrap();
+                let v = g.view(0);
+                for (w, h) in [(48, 20), (58, 26), (100, 40)] {
+                    let area = Rect::new(1, 1, w, h);
+                    let (pos, lens) = layout(area, &v);
+                    let mut whole = 0;
+                    for (i, p) in v.provinces.iter().enumerate() {
+                        assert!(room(area, pos[i], i, &pos).is_some(), "{nobles} nobles seed {seed} {w}x{h}: {} overlaps", p.name);
+                        assert!(lens[i] >= 3, "{nobles}/{seed} {w}x{h}: {} shows {}", p.name, lens[i]);
+                        whole += (lens[i] == p.name.chars().count()) as usize;
+                    }
+                    assert!(whole * 10 >= v.provinces.len() * 7, "{nobles}/{seed} {w}x{h}: {whole} of {} whole", v.provinces.len());
+                }
+            }
+        }
+    }
 }

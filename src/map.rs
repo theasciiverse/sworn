@@ -85,7 +85,7 @@ const PREFIXES: &[&str] = &[
     "Thorn", "Ul", "Ver", "Wyn", "Ard", "Brey", "Cor", "Drav", "Esk", "Grim", "Hart", "Lod", "Mar", "Ruth", "Sten",
     "Tav", "Wend", "Yar",
 ];
-const SUFFIXES: &[&str] = &[
+pub const SUFFIXES: &[&str] = &[
     "ford", "holm", "by", "wick", "stead", "mere", "ton", "burg", "dale", "croft", "garth", "ley", "hithe", "march",
     "combe", "thorp", "moor", "hall",
 ];
