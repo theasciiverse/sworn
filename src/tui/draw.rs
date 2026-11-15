@@ -713,7 +713,7 @@ fn first_season_text(v: &View) -> Text<'static> {
         Line::raw(format!("{}, you hold {home} and little else. To rule the {} you", me.name, me.faction.name())),
         Line::raw(format!("must one day hold {seat} and have every other {} sworn to you.", me.faction.one())),
         Line::raw(""),
-        step("r", "raise troops; they can march this same season, and cost gold to keep"),
+        step("r", "raise troops; they can march at once, and cost gold to keep"),
         step("m", "march on an unclaimed neighbour with more men than its levies"),
         step("e", "end the season: every noble's orders happen at once"),
         Line::raw(""),

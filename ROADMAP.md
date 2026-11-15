@@ -1,8 +1,8 @@
 # Roadmap
 
-Sworn is at 0.3.0 (2026-11-14): played against the computer nobles by
-Claude in a terminal and tuned from that, in the catalog, with the court
-of 0.3.0 mostly in. 1.0.0 is when everything below is in. The open questions
+Sworn is at 0.4.0 (2026-11-15): solo play against the computer nobles
+made a real contest, with a difficulty to choose, and the map readable at
+80x24. 1.0.0 is when everything below is in. The open questions
 behind some of these are in `CLAUDE.md`.
 
 ## 0.1.0: built (2026-11-07)
@@ -28,7 +28,7 @@ behind some of these are in `CLAUDE.md`.
 - [x] Saves in the state folder; `--seed N`
 - [x] Catalog page, preview and release workflow
 
-## 0.3.0: the court (released with the map names still to do)
+## 0.3.0: the court
 
 - [x] Help that teaches: a new game opens with a word on raising,
   marching and ending the season, and where the crown's needs are shown
@@ -40,7 +40,24 @@ behind some of these are in `CLAUDE.md`.
 - [x] Map names that stay readable at 80x24 (labels nudged a cell or two
   apart, names cut keep their ending's first letter)
 
-## 0.4.0: playing with people
+## 0.4.0: a match for one player (2026-11-15)
+
+Claude's own first game against the computer nobles was won in five
+years; they grabbed land slowly, hoarded gold and sold peace to the
+leader. Playing with people moved to 0.5.0, since it needs people.
+
+- [x] Computer nobles muster troops where their next conquest lacks them,
+  spend their gold, save up for their own crown seat, keep a peace they
+  paid for, sell none to the realm's leader, and kin do not kneel cheaply
+  to a noble near the crown
+- [x] Difficulty for games against the computer: Gentle, Fair, Hard (their
+  lands pay two thirds, the same, or half again)
+- [x] The march window shows both sides' strength and whether it is enough
+- [x] At 80x24 the crown's checklist leads the nobles tab, the chronicle
+  opens on the newest season; unread letters only count as new; a finished
+  game says so on the status line
+
+## 0.5.0: playing with people
 
 - [ ] Played with people over the network; pace and the 30-year limit
   tuned from that

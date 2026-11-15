@@ -113,6 +113,13 @@ play Sworn ones. Saves live in `$XDG_STATE_HOME/sworn/` (`*.sworn`; moved there 
       (end of season, timer running low) is a taste call. Juice so far: battle flashes
 - [ ] LAN port 31460 is Sworn's. Note `sigpipe` and `sleighride` both use 31459
 
+## Status (2026-11-15)
+
+0.4.0: computer nobles made a match for one player and a difficulty to pick (see Decisions
+2026-11-15 and `ROADMAP.md`), map names readable at 80x24, preview recorded anew (`--seed 7`,
+`hub/tools/castrec.py`). `examples/balance.rs` also reports how much of the realm is claimed
+after three years (81%, was 71%).
+
 ## Status (2026-11-14)
 
 0.2.0: played against the computer nobles and over LAN and iroh between two local
