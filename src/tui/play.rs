@@ -157,6 +157,7 @@ impl Play {
         };
         if p.view().winner.is_some() {
             p.popup = Some(Popup::Over { metric: 0 });
+            p.status = "The game is over. Enter shows the standings again; q leaves.".into();
         }
         p
     }
@@ -256,7 +257,11 @@ impl Play {
                     }
                     self.flashes = flashes(self.view(), season);
                     self.flash_start = None;
-                    self.status = format!("{}: your orders for the new season.", season_name(self.view().season));
+                    self.status = if self.view().winner.is_some() {
+                        "The game is over. Enter shows the standings again; q leaves.".into()
+                    } else {
+                        format!("{}: your orders for the new season.", season_name(self.view().season))
+                    };
                     self.popup = Some(if self.view().winner.is_some() { Popup::Over { metric: 0 } } else { Popup::Report { season, scroll: 0 } });
                 }
                 Notice::Info(s) => self.status = s,

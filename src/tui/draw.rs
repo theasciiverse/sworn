@@ -119,7 +119,7 @@ fn draw_sidebar(f: &mut Frame, area: Rect, play: &Play) {
         Tab::Orders => orders_panel(play, sel),
         Tab::Letters => letters_panel(play, sel),
         Tab::Nobles => nobles_panel(play, sel, inner),
-        Tab::Chronicle => chronicle_panel(play, sel, inner.height),
+        Tab::Chronicle => chronicle_panel(play, sel, inner),
     };
     f.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }).scroll((scroll, 0)), inner);
 }
@@ -359,7 +359,7 @@ fn crown_lines(v: &View) -> Vec<Line<'static>> {
     lines
 }
 
-fn chronicle_panel(play: &Play, sel: usize, height: u16) -> (Text<'static>, u16) {
+fn chronicle_panel(play: &Play, sel: usize, area: Rect) -> (Text<'static>, u16) {
     let v = play.court.view();
     let mut lines: Vec<Line> = vec![];
     let mut last = u32::MAX;
@@ -374,10 +374,12 @@ fn chronicle_panel(play: &Play, sel: usize, height: u16) -> (Text<'static>, u16)
     if lines.is_empty() {
         lines.push(Line::styled("Nothing has happened yet.", DIM));
     }
-    // j/k scrolls back from the newest.
-    let back = sel.min(lines.len()) as u16;
-    let n = lines.len() as u16;
-    let scroll = n.saturating_sub(height.saturating_mul(2)).saturating_sub(back);
+    // Opens on the newest; j/k scrolls back a line at a time.
+    // Word wrapping takes a little more room than the width alone says;
+    // guessing high leaves a blank line rather than hiding the newest.
+    let wrap = area.width.saturating_sub(4).max(1);
+    let rows: u16 = lines.iter().map(|l| (l.width().max(1) as u16).div_ceil(wrap)).sum();
+    let scroll = rows.saturating_sub(area.height).saturating_sub(sel as u16);
     (Text::from(lines), scroll)
 }
 
