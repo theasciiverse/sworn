@@ -113,6 +113,18 @@ play Sworn ones. Saves live in `$XDG_STATE_HOME/sworn/` (`*.sworn`; moved there 
       (end of season, timer running low) is a taste call. Juice so far: battle flashes
 - [ ] LAN port 31460 is Sworn's. Note `sigpipe` and `sleighride` both use 31459
 
+## Status (2026-11-15, later)
+
+0.5.0: played over the network between two processes in tmux (two state folders, one
+host, one joiner; LAN and by id; letters and offers; the season timer; leaving and
+rejoining; a whole game to the end screen). Hosted games get a length in the lobby (`y`:
+`netcourt::LENGTHS`, 10/20/30 years, into `Rules::max_seasons`, so no format change); the
+crown's checklist names the season after which the highest score wins. `HostCourt::players`
+remembers who sat where, so a player seated as "David 2" can rejoin as "David"
+(`tests/net.rs` `a_renamed_player_finds_their_seat_again`). Lobby panels count wrapped rows.
+Note: rejoining by exact name can still take a computer noble's seat (typing "Aldric");
+left as it was, it is how a resumed game is reclaimed.
+
 ## Status (2026-11-15)
 
 0.4.0: computer nobles made a match for one player and a difficulty to pick (see Decisions
