@@ -118,7 +118,7 @@ fn draw_sidebar(f: &mut Frame, area: Rect, play: &Play) {
         Tab::Province => (province_panel(play), 0),
         Tab::Orders => orders_panel(play, sel),
         Tab::Letters => letters_panel(play, sel),
-        Tab::Nobles => nobles_panel(play, sel),
+        Tab::Nobles => nobles_panel(play, sel, inner),
         Tab::Chronicle => chronicle_panel(play, sel, inner.height),
     };
     f.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }).scroll((scroll, 0)), inner);
@@ -264,9 +264,16 @@ fn short_season(s: u32) -> String {
     format!("{q}{}", crate::FIRST_YEAR + s / 4)
 }
 
-fn nobles_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
+/// The crown's checklist first, since it is what a player comes here for,
+/// then every noble, scrolled to keep the selected one in sight.
+fn nobles_panel(play: &Play, sel: usize, area: Rect) -> (Text<'static>, u16) {
     let v = play.court.view();
-    let mut lines: Vec<Line> = vec![];
+    let mut lines: Vec<Line> = crown_lines(v);
+    lines.push(Line::raw(""));
+    let rows = |l: &Line| (l.width().max(1) as u16).div_ceil(area.width.max(1));
+    let mut sel_top = 0;
+    let mut sel_bottom = 0;
+    let mixed = v.nobles.iter().any(|n| n.id != v.me && !n.ai);
     for (i, n) in v.nobles.iter().enumerate() {
         let mut head = vec![
             Span::styled("■ ", Style::new().fg(noble_color(n.id))),
@@ -287,21 +294,21 @@ fn nobles_panel(play: &Play, sel: usize) -> (Text<'static>, u16) {
         if let Some(l) = n.liege {
             detail.push_str(&format!(" · sworn to {}", v.noble(l).name));
         }
-        if n.ai {
+        // Worth saying only when people sit at the table too.
+        if n.ai && mixed {
             detail.push_str(" · computer");
         }
-        let (h, d) = (Line::from(head), Line::styled(detail, DIM));
+        let (mut h, mut d) = (Line::from(head), Line::styled(detail, DIM));
         if i == sel {
-            lines.push(h.reversed());
-            lines.push(d.reversed());
-        } else {
-            lines.push(h);
-            lines.push(d);
+            (h, d) = (h.reversed(), d.reversed());
+            sel_top = lines.iter().map(rows).sum::<u16>();
+            sel_bottom = sel_top + rows(&h) + rows(&d);
         }
+        lines.push(h);
+        lines.push(d);
     }
-    lines.push(Line::raw(""));
-    lines.extend(crown_lines(v));
-    (Text::from(lines), (sel as u16 * 2).saturating_sub(16))
+    let scroll = if sel == 0 { 0 } else { sel_bottom.saturating_sub(area.height).min(sel_top) };
+    (Text::from(lines), scroll)
 }
 
 /// What the crown of my people still needs, each condition ticked off.

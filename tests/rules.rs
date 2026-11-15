@@ -411,8 +411,8 @@ fn a_computer_noble_that_kneels_does_not_march_on_its_new_liege() {
     g.nobles[0].gold = 20;
     own(&mut g, 0, 0, 1); // Ann's A is nearly empty, Bo's B strong
     own(&mut g, 1, 1, 20);
-    for p in [2, 3, 5] {
-        own(&mut g, p, 0, 3); // Ann holds twice Bo's land: kneeling is cheap for kin
+    for p in [2, 3, 4, 5] {
+        own(&mut g, p, 0, 3); // Ann holds five times Bo's land: kneeling is cheap
     }
     g.send_letter(0, &[1], "Kneel, cousin.", Some((vec![Term::Gold(6)], vec![Term::Fealty]))).unwrap();
     g.ai_orders();

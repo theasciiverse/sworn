@@ -132,9 +132,19 @@ fn write_letters(v: &View, mine: &[ProvinceId], paid: &BTreeMap<NobleId, u32>, g
     if let Some(&foe) = hurt_by.iter().find(|&&f| v.noble(f).power >= me.power * 2 && !offered_to(f) && me.liege != Some(f)) {
         let price = (gold / 2).clamp(0, 12);
         if price >= TRUCE_PRICE && paid.get(&foe).is_none() {
+            // Honest about it if I have been fighting them myself this past year.
+            let fought = v.events.iter().filter(|e| e.season + 4 >= v.season).any(|e| match &e.kind {
+                EventKind::Battle { defender: Some(d), marched, .. } => *d == foe && marched.iter().any(|c| c.noble == v.me),
+                _ => false,
+            });
+            let body = if fought {
+                format!("{}, enough. Take this and leave my lands in peace, and I will leave yours.", v.noble(foe).name)
+            } else {
+                format!("{}, take this and leave my lands in peace. I have no quarrel with you.", v.noble(foe).name)
+            };
             turn.letters.push(Draft {
                 to: vec![foe],
-                body: format!("{}, take this and leave my lands in peace. I have no quarrel with you.", v.noble(foe).name),
+                body,
                 offer: Some((vec![Term::Gold(price)], vec![])),
             });
             return;
