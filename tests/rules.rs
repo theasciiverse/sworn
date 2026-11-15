@@ -471,3 +471,21 @@ fn a_computer_vassal_answers_its_liege_s_call_to_arms() {
     assert!(orders.iter().any(|o| matches!(o, Order::March { to: 2, on_behalf: Some(0), .. })), "{orders:?}");
     assert!(g.letters.iter().any(|l| l.from == 1 && l.body.contains("march on C")), "and says so");
 }
+
+#[test]
+fn difficulty_scales_only_the_computer_nobles_income() {
+    let season = |pct: u32| {
+        let mut g = game();
+        g.rules.ai_income_pct = pct;
+        g.nobles[1].ai = true;
+        g.submit(0, vec![]).unwrap();
+        g.submit(2, vec![]).unwrap();
+        g.ai_orders();
+        g.resolve();
+        (g.nobles[0].gold, g.nobles[1].gold)
+    };
+    let (fair, hard, gentle) = (season(100), season(150), season(67));
+    assert_eq!(fair.0, hard.0, "a player's income is untouched");
+    assert_eq!(fair.0, gentle.0);
+    assert!(hard.1 > fair.1 && fair.1 > gentle.1, "{gentle:?} {fair:?} {hard:?}");
+}

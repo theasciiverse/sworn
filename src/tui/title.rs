@@ -1,6 +1,7 @@
 //! The title menu and the new-game setup.
 
 use crate::faction::Faction;
+use super::Level;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
@@ -95,10 +96,9 @@ enum Row {
     Name,
     Faction,
     Nobles,
+    Level,
     Start,
 }
-
-const ROWS: [Row; 4] = [Row::Name, Row::Faction, Row::Nobles, Row::Start];
 
 pub struct Setup {
     pub name: String,
@@ -106,6 +106,8 @@ pub struct Setup {
     pub nobles: usize,
     /// Hosting: other players fill seats first, computer nobles the rest.
     pub hosting: bool,
+    /// Index into `Level::ALL`; games against the computer only.
+    pub level: usize,
     row: usize,
 }
 
@@ -116,7 +118,19 @@ pub enum SetupResult {
 
 impl Setup {
     pub fn new(name: String, hosting: bool) -> Setup {
-        Setup { name, faction: 0, nobles: 5, hosting, row: 0 }
+        Setup { name, faction: 0, nobles: 5, hosting, level: 1, row: 0 }
+    }
+
+    fn rows(&self) -> Vec<Row> {
+        if self.hosting {
+            vec![Row::Name, Row::Faction, Row::Nobles, Row::Start]
+        } else {
+            vec![Row::Name, Row::Faction, Row::Nobles, Row::Level, Row::Start]
+        }
+    }
+
+    pub fn level(&self) -> Level {
+        Level::ALL[self.level.min(Level::ALL.len() - 1)]
     }
 
     pub fn faction(&self) -> Faction {
@@ -124,22 +138,25 @@ impl Setup {
     }
 
     pub fn key(&mut self, k: KeyEvent) -> Option<SetupResult> {
-        let row = ROWS[self.row];
+        let rows = self.rows();
+        let row = rows[self.row.min(rows.len() - 1)];
+        let n = rows.len();
         match k.code {
             KeyCode::Esc => return Some(SetupResult::Back),
-            KeyCode::Up => self.row = (self.row + ROWS.len() - 1) % ROWS.len(),
-            KeyCode::Down | KeyCode::Tab => self.row = (self.row + 1) % ROWS.len(),
+            KeyCode::Up => self.row = (self.row + n - 1) % n,
+            KeyCode::Down | KeyCode::Tab => self.row = (self.row + 1) % n,
             KeyCode::Enter if row == Row::Start || !self.name.trim().is_empty() && row != Row::Name => {
                 if !self.name.trim().is_empty() {
                     return Some(SetupResult::Start);
                 }
             }
-            KeyCode::Enter => self.row = (self.row + 1) % ROWS.len(),
+            KeyCode::Enter => self.row = (self.row + 1) % n,
             KeyCode::Left | KeyCode::Right => {
                 let d: i32 = if k.code == KeyCode::Left { -1 } else { 1 };
                 match row {
                     Row::Faction => self.faction = (self.faction as i32 + d).rem_euclid(4) as usize,
                     Row::Nobles => self.nobles = (self.nobles as i32 + d).clamp(2, 8) as usize,
+                    Row::Level => self.level = (self.level as i32 + d).clamp(0, Level::ALL.len() as i32 - 1) as usize,
                     _ => {}
                 }
             }
@@ -159,11 +176,13 @@ impl Setup {
     pub fn draw(&self, f: &mut Frame) {
         let area = f.area();
         let w = 64.min(area.width);
-        let r = Rect::new(area.x + (area.width - w) / 2, area.y + area.height.saturating_sub(16) / 2, w, 16.min(area.height));
+        let h = if self.hosting { 16 } else { 17 };
+        let r = Rect::new(area.x + (area.width - w) / 2, area.y + area.height.saturating_sub(h) / 2, w, h.min(area.height));
         let title = if self.hosting { " Host a game " } else { " A new game " };
         let block = Block::bordered().border_type(BorderType::Rounded).title(title).border_style(Style::new().fg(GOLD));
-        let row = |i: usize, label: &str, value: Vec<Span<'static>>| {
-            let mut spans = vec![if self.row == i {
+        let rows = self.rows();
+        let row = |r: Row, label: &str, value: Vec<Span<'static>>| {
+            let mut spans = vec![if rows.get(self.row) == Some(&r) {
                 Span::styled(format!("▸ {label:<14}"), Style::new().fg(GOLD).bold())
             } else {
                 Span::styled(format!("  {label:<14}"), DIM)
@@ -175,20 +194,23 @@ impl Setup {
         let cursor = if self.row == 0 { "▏" } else { "" };
         let table = if self.hosting { "Seats" } else { "Nobles" };
         let mut lines = vec![
-            row(0, "Your name", vec![Span::raw(self.name.clone()), Span::styled(cursor, Style::new().fg(GOLD))]),
+            row(Row::Name, "Your name", vec![Span::raw(self.name.clone()), Span::styled(cursor, Style::new().fg(GOLD))]),
             Line::raw(""),
-            row(1, "Your people", vec![Span::raw(format!("◀ {} ▶", fac.name()))]),
+            row(Row::Faction, "Your people", vec![Span::raw(format!("◀ {} ▶", fac.name()))]),
             Line::styled(format!("                  {}", fac.blurb()), DIM),
             Line::raw(""),
-            row(2, table, vec![Span::raw(format!("◀ {} ▶", self.nobles))]),
+            row(Row::Nobles, table, vec![Span::raw(format!("◀ {} ▶", self.nobles))]),
         ];
         if self.hosting {
             lines.push(Line::styled("                  Seats no one takes go to computer nobles.", DIM));
         } else {
             lines.push(Line::styled(format!("                  You and {} computer nobles.", self.nobles - 1), DIM));
+            lines.push(Line::raw(""));
+            lines.push(row(Row::Level, "Difficulty", vec![Span::raw(format!("◀ {} ▶", self.level().name()))]));
+            lines.push(Line::styled(format!("                  {}", self.level().blurb()), DIM));
         }
         lines.push(Line::raw(""));
-        lines.push(row(3, "Begin", vec![]));
+        lines.push(row(Row::Start, "Begin", vec![]));
         lines.push(Line::raw(""));
         lines.push(Line::styled("  ↑↓ choose · ←→ change · Enter begin · Esc back", DIM));
         f.render_widget(Paragraph::new(Text::from(lines)).block(block), r);

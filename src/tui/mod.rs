@@ -51,13 +51,54 @@ pub fn default_name() -> String {
 
 /// A new single-player game: you are noble 0, computer nobles the rest.
 pub fn new_local_game(name: &str, faction: Faction, count: usize, seed: u64) -> Result<Game, String> {
+    new_local_game_at(name, faction, count, seed, Level::Fair)
+}
+
+/// How hard the computer nobles play: they gather more or less gold than
+/// a player's lands would pay, and play the same way otherwise.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Level {
+    Gentle,
+    Fair,
+    Hard,
+}
+
+impl Level {
+    pub const ALL: [Level; 3] = [Level::Gentle, Level::Fair, Level::Hard];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Level::Gentle => "Gentle",
+            Level::Fair => "Fair",
+            Level::Hard => "Hard",
+        }
+    }
+
+    pub fn blurb(self) -> &'static str {
+        match self {
+            Level::Gentle => "Their lands pay a third less than yours.",
+            Level::Fair => "Their lands pay what yours do.",
+            Level::Hard => "Their lands pay half again what yours do.",
+        }
+    }
+
+    pub fn income_pct(self) -> u32 {
+        match self {
+            Level::Gentle => 67,
+            Level::Fair => 100,
+            Level::Hard => 150,
+        }
+    }
+}
+
+pub fn new_local_game_at(name: &str, faction: Faction, count: usize, seed: u64, level: Level) -> Result<Game, String> {
     let mut nobles = vec![NewNoble { name: name.into(), faction, ai: false }];
     let mut others = crate::netcourt::COMPUTER_NAMES.iter().filter(|n| !n.eq_ignore_ascii_case(name));
     for i in 1..count {
         let f = Faction::ALL[(faction as usize + i) % 4];
         nobles.push(NewNoble { name: others.next().copied().unwrap_or("Nobody").into(), faction: f, ai: true });
     }
-    Game::new(GameSetup { seed, nobles, rules: Rules::default() })
+    Game::new(GameSetup { seed, nobles, rules: Rules { ai_income_pct: level.income_pct(), ..Rules::default() } })
 }
 
 static FIXED_SEED: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
@@ -164,7 +205,7 @@ impl Ui {
                         Some(SetupResult::Start) => {
                             let (name, faction, count) = (s.name.trim().to_string(), s.faction(), s.nobles);
                             self.player_name = name.clone();
-                            match new_local_game(&name, faction, count, seed_from_clock()) {
+                            match new_local_game_at(&name, faction, count, seed_from_clock(), s.level()) {
                                 Ok(g) => {
                                     log::info!("new game: {count} nobles, {} provinces", g.map.provinces.len());
                                     let court = LocalCourt::new(g, 0, Some(autosave_path()));

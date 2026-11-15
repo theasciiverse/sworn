@@ -119,7 +119,12 @@ impl Court for LocalCourt {
 
     fn describe(&self) -> String {
         let ai = self.game.alive().filter(|n| n.ai).count();
-        format!("against {ai} computer noble{}", if ai == 1 { "" } else { "s" })
+        let level = match self.game.rules.ai_income_pct {
+            p if p < 100 => " (gentle)",
+            p if p > 100 => " (hard)",
+            _ => "",
+        };
+        format!("against {ai} computer noble{}{level}", if ai == 1 { "" } else { "s" })
     }
 }
 

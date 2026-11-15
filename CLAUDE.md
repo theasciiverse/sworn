@@ -90,6 +90,17 @@ play Sworn ones. Saves live in `$XDG_STATE_HOME/sworn/` (`*.sworn`; moved there 
   oaths the crown needs); all lean on whoever holds 25%+ of the realm, and the strongest rival
   writes to the rest urging them to strike; a vassal grown twice its liege's size renounces.
 
+## Decisions (2026-11-15)
+
+- **Difficulty** (games against the computer only): `Rules::ai_income_pct`, 67 Gentle, 100 Fair,
+  150 Hard. Income is the lever because it is plain to explain and leaves the computer nobles'
+  play the same. Hosted games stay at 100: a steward holding a dropped player's seat is marked
+  `ai` and would otherwise get the bonus. Save format 2 and protocol 3 from here (Rules grew).
+- **Computer nobles** (from Claude's games against them at 80x24): they muster troops where the
+  cheapest conquest within reach lacks them, spend gold rather than hoard it, save up for their
+  own crown seat, keep a peace they paid for, sell no peace to the realm's leader, and kin do
+  not kneel cheaply to a noble near the crown. A first game won in five years before this.
+
 ## Open questions / next steps
 
 - [ ] Play it with people. Balance so far is computer against computer only; since the

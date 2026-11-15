@@ -39,6 +39,9 @@ pub struct Rules {
     pub offer_lifetime: u32,
     /// After this many seasons the highest score wins.
     pub max_seasons: u32,
+    /// Computer nobles' income, percent of what a player's lands would pay:
+    /// the difficulty of a game against them.
+    pub ai_income_pct: u32,
 }
 
 impl Default for Rules {
@@ -64,6 +67,7 @@ impl Default for Rules {
             renounce_penalty: 4,
             offer_lifetime: 2,
             max_seasons: 30 * 4,
+            ai_income_pct: 100,
         }
     }
 }

@@ -15,7 +15,7 @@ use crate::NobleId;
 use serde::{Deserialize, Serialize};
 
 /// Bumped on any incompatible change; the host rejects mismatched players.
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Seat {

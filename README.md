@@ -19,7 +19,9 @@ In game, press `?` for the keys. Briefly: arrows move on the map, `r` raises tro
 marches (`b` to fight on someone else's behalf), `w` writes a letter with an optional offer,
 `e` ends the season.
 
-Up to eight nobles; empty seats go to computer nobles. Games save every season to
+Up to eight nobles; empty seats go to computer nobles. A game against the computer has a
+difficulty: on Gentle their lands pay them a third less than yours would, on Hard half again
+as much; on Fair the same. Games save every season to
 the state folder (`$XDG_STATE_HOME/sworn`, else `~/.local/state/sworn/`). If a player drops, the computer holds their seat until they rejoin
 under the same name. If the host drops, they resume from the title menu and everyone rejoins.
 The host can set a season timer in the lobby (`t`); when it runs out, anyone who has not sent

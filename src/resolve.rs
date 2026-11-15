@@ -387,6 +387,11 @@ impl Game {
                 gross[o as usize] += p.kind.income() + self.nobles[o as usize].faction.income_bonus(p.kind);
             }
         }
+        for (i, g) in gross.iter_mut().enumerate() {
+            if self.nobles[i].ai {
+                *g = *g * self.rules.ai_income_pct / 100;
+            }
+        }
         for (n, g) in self.nobles.iter_mut().zip(&gross).filter(|(n, _)| n.alive) {
             n.gold += g;
         }

@@ -5,7 +5,7 @@ use std::path::Path;
 
 const MAGIC: &[u8; 8] = b"SWORN\0\0\0";
 /// Bumped on any incompatible change to `Game`.
-pub const FORMAT: u16 = 1;
+pub const FORMAT: u16 = 2;
 
 pub fn to_bytes(g: &Game) -> Vec<u8> {
     let mut out = MAGIC.to_vec();
