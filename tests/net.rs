@@ -360,3 +360,45 @@ fn the_season_timer_runs_out_on_a_slow_player() {
     assert!(left > Duration::from_millis(1000), "a fresh clock for the new season");
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
+
+#[test]
+fn a_renamed_player_finds_their_seat_again() {
+    let listener = lan::Listener::start(lan::PORT).expect("LAN listener");
+    let path = scratch("renamed");
+    let mut lobby = HostLobby::new("Hostr", Faction::Saxons, 3, path.clone());
+    until("the host endpoint", 20, || {
+        lobby.poll();
+        lobby.id.is_some()
+    });
+    let found = find_host(&listener, "Hostr");
+    let ann = join(found.addr(), "Ann", &mut lobby);
+    // a second Ann sits as "Ann 2"
+    let mut ann2 = JoinLobby::new(found.addr(), "Ann");
+    until("the second Ann", 20, || {
+        lobby.poll();
+        ann2.poll();
+        ann2.seats.iter().any(|s| s.name == "Ann 2")
+    });
+    let mut host = lobby.start(7).unwrap();
+    let mut ann = seat(ann, &mut host);
+    let ann2 = seat(ann2, &mut host);
+    let second = ann2.view().me;
+    assert_eq!(host.game().nobles[second as usize].name, "Ann 2");
+    drop(ann2);
+    until("Ann 2's seat to pass to a steward", 15, || {
+        host.poll();
+        ann.poll();
+        host.game().nobles[second as usize].ai
+    });
+    // she comes back as plain Ann, the name she typed
+    let mut back = JoinLobby::new(find_host(&listener, "Hostr").addr(), "Ann");
+    until("Ann 2's return", 20, || {
+        host.poll();
+        ann.poll();
+        assert!(back.failed.is_none(), "{:?}", back.failed);
+        back.poll()
+    });
+    let back = back.into_court().unwrap();
+    assert_eq!(back.view().me, second);
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}

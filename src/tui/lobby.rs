@@ -18,7 +18,10 @@ const DIM: Style = Style::new().fg(Color::Indexed(245));
 fn panel(f: &mut Frame, title: &str, lines: Vec<Line>) {
     let area = f.area();
     let w = 76.min(area.width);
-    let h = (lines.len() as u16 + 2).min(area.height);
+    // rows as wrapped, so a long line (a host's id) does not push the last off
+    let inner = w.saturating_sub(2).max(1) as usize;
+    let rows: usize = lines.iter().map(|l| l.width().max(1).div_ceil(inner)).sum();
+    let h = (rows as u16 + 2).min(area.height);
     let r = Rect::new(area.x + (area.width - w) / 2, area.y + area.height.saturating_sub(h) / 2, w, h);
     let block = Block::bordered().border_type(BorderType::Rounded).title(format!(" {title} ")).border_style(Style::new().fg(GOLD));
     f.render_widget(Paragraph::new(Text::from(lines)).block(block).wrap(Wrap { trim: false }), r);
@@ -93,6 +96,13 @@ impl Lobby {
                     h.cycle_timer(k.code == KeyCode::Char('t'));
                 }
             }
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                if let Lobby::Host(h) = self {
+                    if !h.resumed() {
+                        h.cycle_years(k.code == KeyCode::Char('y'));
+                    }
+                }
+            }
             KeyCode::Enter => {
                 if let Lobby::Host(h) = self {
                     if h.id.is_some() {
@@ -121,14 +131,18 @@ impl Lobby {
                 lines.push(Line::styled(if h.resumed() { "Seats (players rejoin under their old names):" } else { "At the table:" }, DIM));
                 lines.extend(seat_lines(&h.seats(), h.size as u8, h.resumed()));
                 lines.push(Line::raw(""));
-                lines.push(Line::from(vec![Span::styled("Orders: ", DIM), Span::styled(timer_name(h.timer), Style::new().fg(GOLD))]));
+                let mut orders = vec![Span::styled("Orders: ", DIM), Span::styled(timer_name(h.timer), Style::new().fg(GOLD))];
+                if !h.resumed() {
+                    orders.extend([Span::styled("   Length: ", DIM), Span::styled(format!("{} years", h.years), Style::new().fg(GOLD))]);
+                }
+                lines.push(Line::from(orders));
                 if h.timer.is_some() {
                     lines.push(Line::styled("When time runs out, anyone who has not sent orders holds.", DIM));
                 }
                 lines.push(Line::raw(""));
                 let mut help = vec![key("Enter"), Span::raw(" begin  "), key("t"), Span::raw(" timer  ")];
                 if !h.resumed() {
-                    help.extend([key("←→"), Span::raw(" your people  ")]);
+                    help.extend([key("y"), Span::raw(" length  "), key("←→"), Span::raw(" your people  ")]);
                 }
                 help.extend([key("Esc"), Span::raw(" close the table")]);
                 lines.push(Line::from(help));

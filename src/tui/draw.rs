@@ -356,6 +356,9 @@ fn crown_lines(v: &View) -> Vec<Line<'static>> {
         },
     );
     lines.push(Line::styled(format!("You: {}", me.faction.blurb()), DIM));
+    // the game's end if nobody is crowned first
+    let last = r.max_seasons.saturating_sub(1);
+    lines.push(Line::styled(format!("If no one is crowned, the highest score wins after {}.", crate::season_name(last)), DIM));
     lines
 }
 

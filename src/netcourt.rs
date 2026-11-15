@@ -22,6 +22,10 @@ use std::time::{Duration, Instant};
 
 const PING_EVERY: Duration = Duration::from_secs(2);
 
+/// Game lengths the host can choose in the lobby, in years: after that the
+/// highest score wins if nobody has been crowned.
+pub const LENGTHS: [u32; 3] = [10, 20, 30];
+
 /// Season timers the host can choose in the lobby, in seconds (0: none).
 pub const TIMERS: [u32; 6] = [0, 60, 120, 180, 300, 600];
 
@@ -70,6 +74,8 @@ pub struct HostLobby {
     last_ping: Instant,
     /// How long each season waits for orders before the stragglers hold.
     pub timer: Option<Duration>,
+    /// Years before the highest score wins (a new game only).
+    pub years: u32,
 }
 
 impl HostLobby {
@@ -86,6 +92,7 @@ impl HostLobby {
             failed: None,
             last_ping: Instant::now(),
             timer: None,
+            years: 30,
         }
     }
 
@@ -105,7 +112,14 @@ impl HostLobby {
             failed: None,
             last_ping: Instant::now(),
             timer: None,
+            years: 30,
         }
+    }
+
+    /// Steps through `LENGTHS`.
+    pub fn cycle_years(&mut self, forward: bool) {
+        let i = LENGTHS.iter().position(|&y| y == self.years).unwrap_or(2) as i32 + if forward { 1 } else { -1 };
+        self.years = LENGTHS[i.rem_euclid(LENGTHS.len() as i32) as usize];
     }
 
     /// Sets how long each season waits for orders (None: until everyone is ready).
@@ -262,13 +276,14 @@ impl HostLobby {
                     taken.push(name.clone());
                     nobles.push(NewNoble { name, faction, ai: true });
                 }
-                let mut g = Game::new(Setup { seed, nobles, rules: Rules::default() })?;
+                let mut g = Game::new(Setup { seed, nobles, rules: Rules { max_seasons: self.years * 4, ..Rules::default() } })?;
                 g.ai_write();
                 g
             }
         };
         log::info!("hosting a game: {} nobles, {} players, season {}", game.nobles.len(), clients.len() + 1, game.season);
         let view = game.view(0);
+        let players = clients.values().copied().collect();
         let mut court = HostCourt {
             net: self.net,
             id: self.id,
@@ -280,6 +295,7 @@ impl HostLobby {
             last_ping: Instant::now(),
             timer: self.timer,
             deadline: None,
+            players,
         };
         court.open_season();
         for (&c, &n) in &court.clients {
@@ -305,6 +321,8 @@ pub struct HostCourt {
     last_ping: Instant,
     timer: Option<Duration>,
     deadline: Option<Instant>,
+    /// Seats people have sat in, so one who left can find theirs again.
+    players: std::collections::BTreeSet<NobleId>,
 }
 
 impl HostCourt {
@@ -408,7 +426,26 @@ impl HostCourt {
     }
 
     fn rejoin(&mut self, c: ClientId, name: String) {
-        let seat = self.game.nobles.iter().find(|n| n.alive && n.id != 0 && n.name.eq_ignore_ascii_case(name.trim())).map(|n| n.id);
+        let want = name.trim().to_lowercase();
+        let exact = self.game.nobles.iter().find(|n| n.alive && n.id != 0 && n.name.to_lowercase() == want).map(|n| n.id);
+        let held = |id: NobleId| self.clients.values().any(|&x| x == id);
+        let seat = exact.filter(|&id| !held(id)).or_else(|| {
+            // Two players called David sat as "David" and "David 2"; the second
+            // comes back as plain David. Theirs is the one empty seat so named.
+            let empty: Vec<NobleId> = self
+                .game
+                .nobles
+                .iter()
+                .filter(|n| n.alive && self.players.contains(&n.id) && !self.clients.values().any(|&x| x == n.id))
+                .filter(|n| {
+                    let lower = n.name.to_lowercase();
+                    lower.strip_prefix(&format!("{want} ")).is_some_and(|rest| !rest.is_empty() && rest.chars().all(|ch| ch.is_ascii_digit()))
+                })
+                .map(|n| n.id)
+                .collect();
+            (empty.len() == 1).then(|| empty[0])
+        })
+        .or(exact);
         let Some(n) = seat else {
             self.net.send(Cmd::SendTo(c, Msg::Reject { reason: format!("the game has begun, and no seat is named {name}") }));
             self.net.send(Cmd::Kick(c));
@@ -423,6 +460,7 @@ impl HostCourt {
             return;
         }
         self.game.nobles[n as usize].ai = false;
+        self.players.insert(n);
         // Any orders the steward had not yet given are theirs to give again.
         self.clients.insert(c, n);
         self.net.send(Cmd::SendTo(c, Msg::Seated { me: n }));
