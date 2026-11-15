@@ -402,7 +402,7 @@ fn draw_status(f: &mut Frame, area: Rect, play: &Play) {
         Span::styled(if v.submitted { " · sent" } else { "" }, KEY),
     ]);
     let mut top = top;
-    let fresh = v.letters.iter().filter(|l| l.season == v.season && l.from != v.me).count();
+    let fresh = v.letters.iter().filter(|l| l.season == v.season && l.from != v.me && !play.read.contains(&l.id)).count();
     if fresh > 0 {
         top.push_span(Span::styled(format!(" · {fresh} new letter{} (3)", if fresh == 1 { "" } else { "s" }), KEY));
     }

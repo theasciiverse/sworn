@@ -121,6 +121,8 @@ pub struct Play {
     pub flashes: Vec<Flash>,
     /// When the flashing began (it waits for the map to be in view).
     pub flash_start: Option<Instant>,
+    /// Letters opened this session, so the status line counts only unread ones.
+    pub read: std::collections::HashSet<u32>,
 }
 
 /// How long last season's battles flash on the map, and how fast.
@@ -154,6 +156,7 @@ impl Play {
             leave: false,
             flashes: vec![],
             flash_start: None,
+            read: Default::default(),
         };
         if p.view().winner.is_some() {
             p.popup = Some(Popup::Over { metric: 0 });
@@ -332,8 +335,9 @@ impl Play {
             KeyCode::Char('R') if self.tab == Tab::Letters => self.reply(true),
             KeyCode::Char('a') if self.tab == Tab::Letters => self.toggle_accept(),
             KeyCode::Enter if self.tab == Tab::Letters => {
-                if let Some(l) = self.letters().get(self.list_sel[Tab::Letters as usize]) {
-                    self.popup = Some(Popup::Read { letter: l.id, scroll: 0 });
+                if let Some(id) = self.letters().get(self.list_sel[Tab::Letters as usize]).map(|l| l.id) {
+                    self.read.insert(id);
+                    self.popup = Some(Popup::Read { letter: id, scroll: 0 });
                 }
             }
             KeyCode::Char('x') | KeyCode::Delete | KeyCode::Backspace if self.tab == Tab::Orders => {

@@ -51,7 +51,9 @@ pub struct MapMarks<'a> {
     pub flash_on: bool,
 }
 
-const FLASH_TAKEN: Color = Color::Indexed(196);
+/// Behind a province that changed hands: no noble's colour, since red is
+/// the first noble's (often the player's own).
+const FLASH_TAKEN: Color = Color::Indexed(124);
 const FLASH_HELD: Color = Color::Indexed(231);
 const FLASH_ROAD: Color = Color::Indexed(203);
 
@@ -277,7 +279,11 @@ pub fn draw(buf: &mut Buffer, area: Rect, v: &View, marks: &MapMarks, hits: &mut
         });
         match battle {
             Some(taken) if marks.flash_on => {
-                let style = Style::new().fg(if taken { FLASH_TAKEN } else { FLASH_HELD }).add_modifier(Modifier::BOLD);
+                let style = if taken {
+                    Style::new().fg(FLASH_HELD).bg(FLASH_TAKEN).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::new().fg(FLASH_HELD).add_modifier(Modifier::BOLD)
+                };
                 put(buf, x, y, '✶', style, true);
             }
             _ => put(buf, x, y, glyph(p.kind), Style::new().fg(color), true),
