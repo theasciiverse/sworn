@@ -63,8 +63,9 @@ play Sworn ones. Saves live in `$XDG_STATE_HOME/sworn/` (`*.sworn`; moved there 
 - **Map:** a graph of provinces (holds, towns, fortresses, one crown seat per people), generated
   from a jittered grid with some roads cut. Who holds what is public; troop counts are visible
   only in your own provinces and their neighbours, and your liege's and direct vassals'.
-- **Factions (light bonuses only):** Saxons keep troops a third cheaper, Danes attack 15%
-  stronger, Bretons defend 50% stronger and their fortresses pay 3 more, Moravian towns pay 3
+- **Factions (light bonuses only):** Saxons keep troops a third cheaper, Danes attack 10%
+  stronger (15% until 2026-11-15, when computer nobles started spending their gold and the
+  bigger armies lifted the Danes to 41% of wins), Bretons defend 50% stronger and their fortresses pay 3 more, Moravian towns pay 3
   more. Tuned 2026-11-07 on computer games (`cargo run --release --example balance`): each wins
   20-29% of games. The first version (Saxon troops at half price) won 61%.
 - **Treachery:** only offers bind (gold, provinces, fealty; executed before marching if both

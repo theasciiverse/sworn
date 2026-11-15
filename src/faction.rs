@@ -37,7 +37,7 @@ impl Faction {
     pub fn blurb(self) -> &'static str {
         match self {
             Faction::Saxons => "The fyrd: troops cost a third less to keep.",
-            Faction::Danes => "Raiders: 15% stronger when attacking.",
+            Faction::Danes => "Raiders: 10% stronger when attacking.",
             Faction::Bretons => "Castle-builders: half again as strong defending; fortresses pay 3 more.",
             Faction::Moravians => "Traders: every town pays three more gold.",
         }
@@ -45,7 +45,7 @@ impl Faction {
 
     pub fn attack_pct(self) -> u64 {
         if self == Faction::Danes {
-            115
+            110
         } else {
             100
         }

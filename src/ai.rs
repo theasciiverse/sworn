@@ -211,7 +211,11 @@ pub fn plan(v: &View) -> AiTurn {
                 // Kneeling costs little when hopelessly outmatched, else never.
                 Term::Fealty => {
                     let them = v.noble(o.from);
-                    let kin = them.faction == me.faction && me.power * 2 <= them.power;
+                    // Kin kneel sooner, but not to whoever is nearest the crown:
+                    // that oath may be the last thing it lacks.
+                    let total = v.provinces.len() as u32;
+                    let near_crown = them.power * 100 >= total * LEADER_PCT;
+                    let kin = them.faction == me.faction && me.power * 2 <= them.power && !near_crown;
                     if kin || me.power * 3 <= them.power {
                         4
                     } else {
@@ -255,7 +259,12 @@ pub fn plan(v: &View) -> AiTurn {
     let liege = if turn.orders.contains(&Order::Renounce) { None } else { me.liege.or(new_liege) };
     let paid = paid_me(v);
     let bought = i_paid(v);
-    let truce = |n: NobleId| paid.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE || bought.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE;
+    // Peace is not for sale to whoever is closest to the crown.
+    let total = v.provinces.len() as u32;
+    let leading = |n: NobleId| v.noble(n).power * 100 >= total * LEADER_PCT && v.nobles.iter().all(|o| o.id == n || o.power < v.noble(n).power);
+    let truce = |n: NobleId| {
+        (paid.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE && !leading(n)) || bought.get(&n).copied().unwrap_or(0) >= TRUCE_PRICE
+    };
     // Whoever I have just asked to kneel gets the season to answer.
     let asked = |n: NobleId| v.offers.iter().any(|o| o.from == v.me && o.to == n && o.season == v.season && o.want.contains(&Term::Fealty));
     let friendly = |n: NobleId| {
@@ -317,9 +326,17 @@ pub fn plan(v: &View) -> AiTurn {
         targets.push((need, p.id));
     }
     // Everyone leans on whoever is closest to the crown.
-    let total = v.provinces.len() as u32;
     let leader = v.nobles.iter().filter(|n| n.alive && n.id != v.me).max_by_key(|n| n.power).filter(|n| n.power * 100 >= total * LEADER_PCT).map(|n| n.id);
-    let urgency = |need: u32, id: ProvinceId| if leader.is_some() && v.province(id).owner == leader { need * 2 / 3 } else { need };
+    // My people's crown seat is worth saving up for.
+    let urgency = |need: u32, id: ProvinceId| {
+        if v.province(id).kind == crate::map::Kind::Seat(me.faction) {
+            need / 2
+        } else if leader.is_some() && v.province(id).owner == leader {
+            need * 2 / 3
+        } else {
+            need
+        }
+    };
     let mut keyed: Vec<_> =
         targets.into_iter().map(|(need, id)| ((urgency(need, id), std::cmp::Reverse(v.province(id).kind.income()), rng.below(100)), (need, id))).collect();
     keyed.sort_by_key(|k| k.0);
@@ -371,9 +388,13 @@ pub fn plan(v: &View) -> AiTurn {
         }
         mustered += 1;
     }
-    while budget > 0 && !by_threat.is_empty() {
+    // Gold in the chest wins nothing: what the borders cannot take is
+    // raised inside, to march out to them.
+    let mut rest = by_threat.clone();
+    rest.extend(mine.iter().copied().filter(|p| !border.contains(p)));
+    while budget > 0 && !rest.is_empty() {
         let before = budget;
-        for &p in &by_threat {
+        for &p in &rest {
             raise(&mut raised, &mut budget, p, 1);
         }
         if budget == before {

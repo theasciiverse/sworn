@@ -37,7 +37,7 @@ have every other noble of your people sworn to you. After thirty years the highe
 ## The peoples
 
 - **Saxons**: troops cost a third less to keep.
-- **Danes**: 15% stronger when attacking.
+- **Danes**: 10% stronger when attacking.
 - **Bretons**: half again as strong defending; fortresses pay 3 more.
 - **Moravians**: towns pay 3 more.
 

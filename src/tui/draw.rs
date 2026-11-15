@@ -455,14 +455,14 @@ fn odds_line(v: &View, to: &crate::view::ProvinceView, count: u32, ally: Option<
     let (verdict, color) = if attack > defence && to.owner.is_none() {
         ("enough", Color::Indexed(114))
     } else if attack > defence {
-        ("enough if not reinforced", Color::Indexed(114))
+        ("enough unless reinforced", Color::Indexed(114))
     } else if attack == defence {
         ("a bloody draw", Color::Indexed(220))
     } else {
         ("not enough", Color::Indexed(203))
     };
     Line::from(vec![
-        Span::styled(format!("  Strength {a} against {d}: "), DIM),
+        Span::styled(format!("  You {a}, they {d}: "), DIM),
         Span::styled(verdict, Style::new().fg(color)),
     ])
 }
@@ -486,9 +486,9 @@ fn draw_popup(f: &mut Frame, map_area: Rect, play: &Play) {
             let to = v.province(dests[*di]);
             let what = match (ally, to.owner) {
                 (Some(a), _) => vec![Span::raw("to fight for "), name_span(v, *a)],
-                (None, Some(o)) if o == v.me => vec![Span::raw("to reinforce your own province")],
+                (None, Some(o)) if o == v.me => vec![Span::raw("to reinforce it")],
                 (None, Some(o)) => vec![Span::styled("to attack ", Style::new().fg(Color::Indexed(203))), name_span(v, o)],
-                (None, None) => vec![Span::raw("to take it from the local levies")],
+                (None, None) => vec![Span::raw("to take it from its levies")],
             };
             let seen = to.troops.map_or_else(|| "unknown troops".into(), crate::chronicle::troops);
             let text = Text::from(vec![
